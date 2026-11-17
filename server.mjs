@@ -6,6 +6,7 @@ import { randomBytes, timingSafeEqual } from "node:crypto";
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import { buildRagIndex, localRagAnswer, retrieve } from "./lib/rag.mjs";
+import { SYSTEM_PROMPT, smallTalkReply, retrievalQuestion } from "./lib/assistant-behavior.mjs";
 import { KnowledgeStore, knowledgeChunks } from "./lib/knowledge-store.mjs";
 import { extractDocument } from "./lib/document-extractor.mjs";
 
@@ -194,21 +195,20 @@ async function fetchWebSource(value, redirectCount = 0) {
 }
 
 async function askOpenAI(message, history, language, evidence) {
-  const retrievedContext = evidence.map((item, index) => `[${index + 1}] ${item.title}\n${item.text}`).join("\n\n");
   const instructions = [
-    "You are Angad's concise portfolio assistant.",
-    "Answer only from RETRIEVED_EVIDENCE. If the evidence does not support the answer, say that the portfolio does not contain that detail.",
-    "Never invent dates, employers, metrics, credentials, links, publications, or personal facts.",
-    "Synthesize the retrieved facts instead of repeating a canned paragraph. Prefer 2-5 sentences and use concrete evidence.",
-    language === "fr" ? "Answer in French." : "Answer in English.",
-    `RETRIEVED_EVIDENCE:\n${retrievedContext}`
+    SYSTEM_PROMPT,
+    language === "fr" ? "Answer in French." : "Answer in English."
   ].join("\n\n");
   const recentHistory = Array.isArray(history) ? history.slice(-6)
     .filter((item) => item && ["user", "assistant"].includes(item.role) && typeof item.content === "string")
     .map((item) => ({ role: item.role, content: item.content.slice(0, 1200) })) : [];
+  const referenceInput = JSON.stringify({
+    question: message,
+    retrieved_evidence: evidence.filter((item) => item.score > 0).map(({ title, text }) => ({ title, text }))
+  });
   const apiResponse = await fetch("https://api.openai.com/v1/responses", {
     method: "POST", headers: { "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model, instructions, input: [...recentHistory, { role: "user", content: message }], store: false, max_output_tokens: 380 }),
+    body: JSON.stringify({ model, instructions, input: [...recentHistory, { role: "user", content: referenceInput }], store: false, max_output_tokens: 380 }),
     signal: AbortSignal.timeout(25_000)
   });
   if (!apiResponse.ok) throw new Error(`OpenAI request failed with ${apiResponse.status}`);
@@ -223,7 +223,10 @@ async function handleChat(request, response) {
     const { message, history, language: requestedLanguage } = await readJsonBody(request);
     const language = requestedLanguage === "fr" ? "fr" : "en";
     if (typeof message !== "string" || !message.trim() || message.length > 800) return sendJson(response, 400, { error: "Message must be between 1 and 800 characters." });
-    const evidence = await retrieve(message.trim(), ragIndex, { apiKey: process.env.OPENAI_API_KEY, limit: 4 });
+    const conversationalAnswer = smallTalkReply(message, language, history);
+    if (conversationalAnswer) return sendJson(response, 200, { answer: conversationalAnswer, mode: "conversation", retrievalMode: ragIndex.mode, sources: [] });
+    const question = retrievalQuestion(message);
+    const evidence = await retrieve(question, ragIndex, { apiKey: process.env.OPENAI_API_KEY, limit: 4 });
     const sources = evidence.filter((item) => item.score > 0).map(({ id, title, score, metadata }) => ({
       id,
       title,
@@ -231,12 +234,12 @@ async function handleChat(request, response) {
       sourceUrl: metadata?.sourceUrl || "",
       documentName: metadata?.documentName || ""
     }));
-    if (!process.env.OPENAI_API_KEY) return sendJson(response, 200, { answer: localRagAnswer(message, evidence, language), mode: "retrieval", retrievalMode: ragIndex.mode, sources });
+    if (!process.env.OPENAI_API_KEY) return sendJson(response, 200, { answer: localRagAnswer(question, evidence, language, history), mode: "retrieval", retrievalMode: ragIndex.mode, sources });
     try {
       const answer = await askOpenAI(message.trim(), history, language, evidence);
       return sendJson(response, 200, { answer, mode: "ai", retrievalMode: ragIndex.mode, sources });
     } catch {
-      return sendJson(response, 200, { answer: localRagAnswer(message, evidence, language), mode: "retrieval", retrievalMode: ragIndex.mode, sources });
+      return sendJson(response, 200, { answer: localRagAnswer(question, evidence, language, history), mode: "retrieval", retrievalMode: ragIndex.mode, sources });
     }
   } catch (error) {
     const status = error.message === "PAYLOAD_TOO_LARGE" ? 413 : 400;

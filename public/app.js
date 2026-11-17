@@ -354,7 +354,8 @@ async function sendMessage(question) {
     typing.remove();
     appendMessage("assistant", data.answer, false, data.sources || []);
     history = [...history, { role: "user", content: message }, { role: "assistant", content: data.answer }].slice(-8);
-    chatMode = data.mode === "ai" ? "ai" : "local";
+    if (data.mode === "ai") chatMode = "ai";
+    else if (data.mode === "retrieval") chatMode = "local";
     updateModeLabel();
   } catch (error) {
     typing.remove();

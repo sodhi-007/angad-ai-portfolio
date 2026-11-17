@@ -146,7 +146,7 @@ footer span:last-child { display: none; }
 .message-bubble { min-width: 0; }
 .message p { margin: 0; padding: 10px 11px; border: 1px solid var(--line); border-radius: 3px 10px 10px; color: var(--muted); background: var(--surface); font-size: 11px; line-height: 1.55; }
 .message-sources { margin: 5px 2px 0; display: flex; flex-wrap: wrap; gap: 5px; color: var(--muted); font: 600 8px/1.35 var(--mono); }
-.message-sources a { padding: 3px 6px; overflow: hidden; border: 1px solid var(--line); border-radius: 999px; color: var(--accent); text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }
+.message-sources a, .message-sources span { padding: 3px 6px; overflow: hidden; border: 1px solid var(--line); border-radius: 999px; color: var(--accent); text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }
 .message-sources a:hover { border-color: var(--accent); }
 .user-message { align-self: flex-end; flex-direction: row-reverse; }
 .user-message > span { color: var(--accent-2); }.user-message p { color: var(--text); border-radius: 10px 3px 10px 10px; }

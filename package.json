@@ -4,13 +4,17 @@
   "private": true,
   "type": "module",
   "description": "A polished AI engineer portfolio with a biography-grounded chatbot.",
+  "dependencies": {
+    "mammoth": "^1.13.0",
+    "pdf-parse": "^2.4.5"
+  },
   "engines": {
     "node": ">=22.13"
   },
   "scripts": {
     "start": "node server.mjs",
     "dev": "node --watch server.mjs",
-    "check": "node --check server.mjs && node --check public/app.js && node --check public/admin.js && node --check lib/chat.mjs && node --check lib/rag.mjs && node --check lib/knowledge-store.mjs",
+    "check": "node --check server.mjs && node --check public/app.js && node --check public/admin.js && node --check lib/chat.mjs && node --check lib/rag.mjs && node --check lib/knowledge-store.mjs && node --check lib/document-extractor.mjs",
     "test": "node --test"
   }
 }

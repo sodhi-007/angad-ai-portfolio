@@ -52,3 +52,25 @@ test("answers organization definitions from the curated web knowledge library", 
   assert.match(answer, /Canadian consulting engineering firm/i);
   assert.equal(results.find((result) => result.id.startsWith("knowledge-"))?.metadata.sourceUrl, "https://www.cima.ca/en/about-us/");
 });
+
+test("uses a concise extractive fallback for facts found in an uploaded document", async () => {
+  const extraChunks = knowledgeChunks([{
+    id: "resume",
+    title: "Angad Resume",
+    category: "Resume",
+    content: "AI and LLM tools: LangChain, OpenAI embeddings, Claude Code, and ChromaDB.\nCloud tools: Azure Container Apps and Docker.",
+    sourceType: "document",
+    sourceUrl: "",
+    documentId: "document-1",
+    document: { name: "Resume.pdf" },
+    tags: ["resume"],
+    visibility: "assistant_only",
+    enabled: true
+  }]);
+  const index = await buildRagIndex(portfolio, { extraChunks });
+  const results = await retrieve("Did Angad use Claude Code?", index, { limit: 3 });
+  const answer = localRagAnswer("Did Angad use Claude Code?", results);
+  assert.match(answer, /^Yes\./);
+  assert.match(answer, /Claude Code/);
+  assert.ok(answer.length < 180);
+});

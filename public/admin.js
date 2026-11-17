@@ -80,8 +80,9 @@ function renderKnowledge() {
     article.classList.add("knowledge-card");
 
     const sourceBadge = document.createElement("span");
-    sourceBadge.className = `source-badge ${item.sourceType === "web" ? "web" : "manual"}`;
-    sourceBadge.textContent = item.sourceType === "web" ? "WEB SOURCE" : "MANUAL NOTE";
+    const sourceLabels = { web: "WEB SOURCE", document: "UPLOADED DOCUMENT", manual: "MANUAL NOTE" };
+    sourceBadge.className = `source-badge ${item.sourceType || "manual"}`;
+    sourceBadge.textContent = sourceLabels[item.sourceType] || sourceLabels.manual;
     article.querySelector("h3").after(sourceBadge);
 
     const remove = removeButton(() => knowledge.splice(index, 1));
@@ -93,8 +94,18 @@ function renderKnowledge() {
     grid.append(
       field("Title", item.title, (value) => { item.title = value; article.querySelector("h3").textContent = value || `Knowledge note ${index + 1}`; }),
       field("Category", item.category, (value) => { item.category = value; }),
-      field("Content", item.content, (value) => { item.content = value; }, { textarea: true, rows: 8, wide: true }),
-      field("Source URL", item.sourceUrl, (value) => { item.sourceUrl = value; item.sourceType = value ? "web" : "manual"; }, { type: "url", wide: true }),
+      field("Content", item.content, (value) => { item.content = value; }, { textarea: true, rows: 8, wide: true })
+    );
+    if (item.sourceType === "document" && item.document) {
+      const details = document.createElement("div");
+      details.className = "document-details wide";
+      const size = item.document.size < 1_000_000 ? `${Math.round(item.document.size / 1_000)} KB` : `${(item.document.size / 1_000_000).toFixed(1)} MB`;
+      details.textContent = `${item.document.name} · ${size}${item.document.pageCount ? ` · ${item.document.pageCount} pages` : ""}`;
+      grid.append(details);
+    } else {
+      grid.append(field("Source URL", item.sourceUrl, (value) => { item.sourceUrl = value; item.sourceType = value ? "web" : "manual"; }, { type: "url", wide: true }));
+    }
+    grid.append(
       field("Tags · comma separated", (item.tags || []).join(", "), (value) => { item.tags = value.split(",").map((tag) => tag.trim()).filter(Boolean); }),
       selectField("Visibility", item.visibility || "assistant_only", [["assistant_only", "Assistant only"], ["public", "Public"], ["private", "Private — never retrieve"]], (value) => { item.visibility = value; })
     );
@@ -205,6 +216,7 @@ function mount(data) {
   skillsDraft = Object.entries(portfolio.skills || {}).map(([name, values]) => ({ name, values: [...values] }));
   document.querySelector("[data-rag-mode]").textContent = data.rag.mode === "embeddings" ? `Embeddings · ${data.rag.model}` : "Local ranked retrieval";
   document.querySelector("[data-rag-chunks]").textContent = data.rag.chunks;
+  document.querySelector("[data-db-status]").textContent = data.storage?.connected ? `${data.storage.driver} · connected` : "Unavailable";
   document.querySelector("[data-ai-mode]").textContent = data.rag.mode === "embeddings" ? "OpenAI + evidence" : "No-key evidence mode";
   loginView.hidden = true; studio.hidden = false; saveButton.hidden = false; logoutButton.hidden = Boolean(data.localAccess);
   bindSimpleFields(); renderSectionOrder(); renderRepeaters(); setDirty(false);
@@ -263,6 +275,52 @@ document.querySelector("[data-profile-file]").addEventListener("change", async (
   const file = event.target.files[0]; if (!file) return; const preview = document.querySelector("[data-profile-preview]");
   try { saveMessage.textContent = "Preparing portrait…"; saveBar.hidden = false; const dataUrl = await imageDataUrl(file); preview.src = dataUrl; const data = await request("/api/admin/profile", { method: "POST", headers: { "X-Admin-Request": "1" }, body: JSON.stringify({ dataUrl }) }); portfolio.site.profileImage = data.profileImage; preview.src = data.profileImage; setDirty(false); saveMessage.textContent = "Portrait updated and index rebuilt"; setTimeout(() => { if (!dirty) saveBar.hidden = true; }, 1800); }
   catch (error) { setDirty(true, error.message); }
+});
+
+async function fileBase64(file) {
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+document.querySelector("[data-document-upload]").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const formData = new FormData(event.currentTarget);
+  const file = formData.get("document");
+  const message = document.querySelector("[data-upload-message]");
+  const submit = event.currentTarget.querySelector('button[type="submit"]');
+  if (!(file instanceof File) || !file.size) return;
+  if (file.size > 8_000_000) { message.textContent = "Documents must be smaller than 8 MB."; return; }
+  submit.disabled = true;
+  message.textContent = "Extracting text and indexing the document…";
+  try {
+    const data = await request("/api/admin/knowledge/upload", {
+      method: "POST",
+      headers: { "X-Admin-Request": "1" },
+      body: JSON.stringify({
+        filename: file.name,
+        mimeType: file.type || "application/octet-stream",
+        base64: await fileBase64(file),
+        title: formData.get("title"),
+        category: formData.get("category"),
+        tags: String(formData.get("tags") || "").split(",").map((tag) => tag.trim()).filter(Boolean),
+        visibility: formData.get("visibility")
+      })
+    });
+    knowledge = data.knowledge;
+    document.querySelector("[data-rag-chunks]").textContent = data.rag.chunks;
+    renderKnowledge();
+    event.currentTarget.reset();
+    event.currentTarget.elements.category.value = "Documents";
+    message.textContent = `Uploaded “${data.item.document.name}” and added ${data.item.title} to retrieval.`;
+  } catch (error) {
+    message.textContent = error.message;
+  } finally {
+    submit.disabled = false;
+  }
 });
 
 document.querySelector("[data-web-import]").addEventListener("submit", async (event) => {

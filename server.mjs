@@ -7,6 +7,7 @@ import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import { buildRagIndex, localRagAnswer, retrieve } from "./lib/rag.mjs";
 import { KnowledgeStore, knowledgeChunks } from "./lib/knowledge-store.mjs";
+import { extractDocument } from "./lib/document-extractor.mjs";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
 const publicDirectory = join(root, "public");
@@ -227,7 +228,8 @@ async function handleChat(request, response) {
       id,
       title,
       score: Number(score.toFixed(3)),
-      sourceUrl: metadata?.sourceUrl || ""
+      sourceUrl: metadata?.sourceUrl || "",
+      documentName: metadata?.documentName || ""
     }));
     if (!process.env.OPENAI_API_KEY) return sendJson(response, 200, { answer: localRagAnswer(message, evidence, language), mode: "retrieval", retrievalMode: ragIndex.mode, sources });
     try {
@@ -257,6 +259,7 @@ async function handleAdmin(request, response, url) {
     portfolio,
     knowledge: knowledgeStore.list(),
     rag: { mode: ragIndex.mode, chunks: ragIndex.chunks.length, model: ragIndex.model },
+    storage: { driver: "SQLite", connected: knowledgeStore.health(), database: "knowledge" },
     localAccess: !adminPassword
   });
   if (url.pathname === "/api/admin/logout" && request.method === "POST") {
@@ -270,7 +273,7 @@ async function handleAdmin(request, response, url) {
     return sendJson(response, 200, { ok: true, portfolio, rag: { mode: ragIndex.mode, chunks: ragIndex.chunks.length } });
   }
   if (url.pathname === "/api/admin/knowledge" && request.method === "PUT") {
-    const body = await readJsonBody(request, 3_000_000);
+    const body = await readJsonBody(request, 20_000_000);
     const knowledge = knowledgeStore.replaceAll(body.items);
     await rebuildRagIndex();
     return sendJson(response, 200, { ok: true, knowledge, rag: { mode: ragIndex.mode, chunks: ragIndex.chunks.length } });
@@ -288,6 +291,27 @@ async function handleAdmin(request, response, url) {
       visibility: "assistant_only",
       enabled: true,
       fetchedAt: imported.fetchedAt
+    });
+    await rebuildRagIndex();
+    return sendJson(response, 200, { ok: true, item, knowledge: knowledgeStore.list(), rag: { mode: ragIndex.mode, chunks: ragIndex.chunks.length } });
+  }
+  if (url.pathname === "/api/admin/knowledge/upload" && request.method === "POST") {
+    const body = await readJsonBody(request, 12_000_000);
+    const encoded = String(body.base64 || "");
+    if (!encoded || encoded.length > 11_000_000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(encoded)) throw new Error("The document upload is invalid or too large.");
+    const buffer = Buffer.from(encoded, "base64");
+    const extracted = await extractDocument(buffer, body.filename, body.mimeType);
+    const fallbackTitle = extracted.name.replace(/\.[^.]+$/, "");
+    const item = knowledgeStore.addDocument({
+      originalName: extracted.name,
+      mimeType: extracted.mimeType,
+      buffer,
+      text: extracted.text,
+      pageCount: extracted.pageCount,
+      title: String(body.title || fallbackTitle),
+      category: String(body.category || "Documents"),
+      tags: body.tags,
+      visibility: body.visibility
     });
     await rebuildRagIndex();
     return sendJson(response, 200, { ok: true, item, knowledge: knowledgeStore.list(), rag: { mode: ragIndex.mode, chunks: ragIndex.chunks.length } });
@@ -330,7 +354,7 @@ async function serveStatic(request, response, url) {
 const server = createServer(async (request, response) => {
   const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
   try {
-    if (url.pathname === "/api/health" && request.method === "GET") return sendJson(response, 200, { ok: true, chatMode: process.env.OPENAI_API_KEY ? "ai" : "retrieval", retrievalMode: ragIndex.mode, chunks: ragIndex.chunks.length });
+    if (url.pathname === "/api/health" && request.method === "GET") return sendJson(response, 200, { ok: true, chatMode: process.env.OPENAI_API_KEY ? "ai" : "retrieval", retrievalMode: ragIndex.mode, chunks: ragIndex.chunks.length, storage: { driver: "SQLite", connected: knowledgeStore.health() } });
     if (url.pathname === "/api/portfolio" && request.method === "GET") return sendJson(response, 200, { portfolio, updatedAt: Date.now() });
     if (url.pathname === "/api/chat" && request.method === "POST") return await handleChat(request, response);
     if (url.pathname.startsWith("/api/admin/")) return await handleAdmin(request, response, url);

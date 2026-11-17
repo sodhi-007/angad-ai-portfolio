@@ -291,18 +291,25 @@ function appendMessage(role, content, temporary = false, sources = []) {
   if (temporary) paragraph.innerHTML = "<span>·</span><span>·</span><span>·</span>";
   else paragraph.textContent = content;
   bubble.append(paragraph);
-  const cited = [...new Map((sources || []).filter((source) => /^https:\/\//i.test(source.sourceUrl || "")).map((source) => [source.sourceUrl, source])).values()];
+  const cited = [...new Map((sources || []).filter((source) => /^https:\/\//i.test(source.sourceUrl || "") || source.documentName)
+    .map((source) => [source.sourceUrl || source.documentName || source.title, source])).values()];
   if (cited.length) {
     const sourceList = document.createElement("div");
     sourceList.className = "message-sources";
     sourceList.append(document.createTextNode("Sources: "));
     cited.slice(0, 3).forEach((source) => {
-      const link = document.createElement("a");
-      link.href = source.sourceUrl;
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
-      link.textContent = source.title || new URL(source.sourceUrl).hostname;
-      sourceList.append(link);
+      if (/^https:\/\//i.test(source.sourceUrl || "")) {
+        const link = document.createElement("a");
+        link.href = source.sourceUrl;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = source.title || new URL(source.sourceUrl).hostname;
+        sourceList.append(link);
+      } else {
+        const documentSource = document.createElement("span");
+        documentSource.textContent = source.documentName;
+        sourceList.append(documentSource);
+      }
     });
     bubble.append(sourceList);
   }

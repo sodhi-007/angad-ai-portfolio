@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>Angad Portfolio Studio</title>
+    <link rel="stylesheet" href="/admin.css?v=1" />
+    <script src="/admin.js?v=1" defer></script>
+  </head>
+  <body>
+    <header class="studio-header">
+      <div><span class="eyebrow">OWNER PORTAL</span><h1>Portfolio Studio</h1></div>
+      <div class="header-actions"><a href="/" target="_blank" rel="noopener">View website ↗</a><button type="button" class="ghost" data-logout hidden>Log out</button><button type="button" class="primary" data-save hidden>Save &amp; reindex</button></div>
+    </header>
+
+    <main>
+      <section class="login-card" data-login hidden>
+        <span class="eyebrow">PRIVATE EDITOR</span>
+        <h2>Sign in to edit your portfolio</h2>
+        <p>Use the password stored in the server’s <code>ADMIN_PASSWORD</code> environment variable.</p>
+        <form data-login-form><label>Password<input type="password" name="password" autocomplete="current-password" required /></label><button class="primary" type="submit">Open studio</button></form>
+        <p class="form-message" data-login-message></p>
+      </section>
+
+      <div class="studio" data-studio hidden>
+        <aside class="studio-nav">
+          <a href="#overview">Overview</a><a href="#layout">Layout</a><a href="#profile">Profile</a><a href="#experience">Experience</a><a href="#projects">Projects</a><a href="#skills">Skills</a><a href="#education">Education</a><a href="#contact">Contact</a>
+        </aside>
+
+        <div class="studio-content">
+          <section class="panel overview" id="overview">
+            <div><span class="eyebrow">KNOWLEDGE SYSTEM</span><h2>Retrieval status</h2><p>Every save rebuilds the portfolio knowledge index used by the chatbot.</p></div>
+            <div class="stats"><article><span>Retriever</span><strong data-rag-mode>—</strong></article><article><span>Knowledge chunks</span><strong data-rag-chunks>—</strong></article><article><span>Generation</span><strong data-ai-mode>Server controlled</strong></article></div>
+          </section>
+
+          <section class="panel" id="layout">
+            <div class="panel-heading"><div><span class="eyebrow">DESIGN</span><h2>Layout and sections</h2></div><p>Reorder, hide, or restyle the public portfolio.</p></div>
+            <div class="field-grid two"><label>Accent colour<input type="color" data-site-field="accent" /></label><label>Spacing<select data-site-field="layout"><option value="compact">Compact</option><option value="standard">Standard</option></select></label></div>
+            <div class="section-order" data-section-order></div>
+          </section>
+
+          <section class="panel" id="profile">
+            <div class="panel-heading"><div><span class="eyebrow">IDENTITY</span><h2>Profile and portrait</h2></div><p>Update your positioning statement and public image.</p></div>
+            <div class="profile-editor"><div class="portrait-upload"><img data-profile-preview alt="Current profile" /><label class="upload-button">Change photo<input type="file" accept="image/jpeg,image/png,image/webp" data-profile-file /></label><small>JPEG, PNG, or WebP · max 6 MB</small></div><div class="field-grid"><label>Name<input data-identity-field="name" /></label><label>Headline<input data-identity-field="headline" /></label><label>Location<input data-identity-field="location" /></label><label>Availability<input data-identity-field="availability" /></label><label class="wide">Summary<textarea rows="4" data-identity-field="summary"></textarea></label></div></div>
+          </section>
+
+          <section class="panel" id="experience"><div class="panel-heading"><div><span class="eyebrow">CAREER</span><h2>Experience</h2></div><button type="button" class="add-button" data-add="experience">+ Add role</button></div><div class="repeater" data-repeater="experience"></div></section>
+          <section class="panel" id="projects"><div class="panel-heading"><div><span class="eyebrow">WORK</span><h2>Projects</h2></div><button type="button" class="add-button" data-add="projects">+ Add project</button></div><div class="repeater" data-repeater="projects"></div></section>
+          <section class="panel" id="skills"><div class="panel-heading"><div><span class="eyebrow">STACK</span><h2>Skills</h2></div><button type="button" class="add-button" data-add="skills">+ Add category</button></div><div class="repeater" data-repeater="skills"></div></section>
+          <section class="panel" id="education"><div class="panel-heading"><div><span class="eyebrow">BACKGROUND</span><h2>Education</h2></div><button type="button" class="add-button" data-add="education">+ Add education</button></div><div class="repeater" data-repeater="education"></div><div class="field-grid two secondary-fields"><label>Certifications <small>one per line</small><textarea rows="5" data-list-field="certifications"></textarea></label><label>Languages <small>one per line</small><textarea rows="5" data-list-field="languages"></textarea></label></div></section>
+          <section class="panel" id="contact"><div class="panel-heading"><div><span class="eyebrow">CONNECT</span><h2>Contact</h2></div><p>Only publish links you want visitors and the chatbot to use.</p></div><div class="field-grid"><label>Email<input type="email" data-contact-field="email" /></label><label>LinkedIn<input type="url" data-contact-field="linkedin" /></label><label>GitHub<input type="url" data-contact-field="github" /></label></div></section>
+        </div>
+      </div>
+    </main>
+
+    <div class="save-bar" data-save-bar hidden><span data-save-message>Unsaved changes</span><button type="button" class="primary" data-save-bottom>Save &amp; reindex</button></div>
+  </body>
+</html>

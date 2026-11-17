@@ -1,0 +1,16 @@
+{
+  "name": "ai-engineer-portfolio",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A polished AI engineer portfolio with a biography-grounded chatbot.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node --watch server.mjs",
+    "check": "node --check server.mjs && node --check public/app.js && node --check lib/chat.mjs",
+    "test": "node --test"
+  }
+}

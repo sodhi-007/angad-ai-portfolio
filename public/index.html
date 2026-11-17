@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Angad Singh Sodhi — Applied AI Engineer building production RAG, agentic systems, and secure cloud platforms." />
+    <meta name="theme-color" content="#0b0c0e" />
+    <title>Angad Singh Sodhi — Applied AI Engineer</title>
+    <link rel="stylesheet" href="/styles.css?v=9" />
+    <script src="/app.js?v=9" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main" data-i18n="skip">Skip to main content</a>
+    <canvas id="network-canvas" aria-hidden="true"></canvas>
+
+    <header class="site-header" data-header>
+      <button class="icon-button menu-button" type="button" aria-expanded="false" aria-controls="site-menu" aria-label="Open navigation"><span></span><span></span><span></span></button>
+      <a class="wordmark" href="#about" aria-label="Angad Singh Sodhi, back to top">angad</a>
+      <div class="header-actions">
+        <div class="language-switcher" role="group" aria-label="Language" data-i18n-aria-label="languageLabel">
+          <button type="button" data-language="en" aria-pressed="true">EN</button>
+          <span aria-hidden="true">|</span>
+          <button type="button" data-language="fr" aria-pressed="false">FR</button>
+        </div>
+        <button class="theme-button" type="button" aria-label="Toggle light and dark theme" data-theme-toggle>☾</button>
+      </div>
+      <nav class="site-menu" id="site-menu" aria-label="Main navigation" hidden>
+        <a href="#about"><span>01</span><b data-i18n="navAbout">About</b></a>
+        <a href="#experience"><span>02</span><b data-i18n="navExperience">Experience</b></a>
+        <a href="#projects"><span>03</span><b data-i18n="navProjects">Projects</b></a>
+        <a href="#education"><span>04</span><b data-i18n="navEducation">Education</b></a>
+        <a href="#contact"><span>05</span><b data-i18n="navContact">Contact</b></a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="section about" id="about" aria-labelledby="about-title">
+        <p class="section-label reveal" data-i18n="aboutLabel">About Me</p>
+        <div class="portrait-mark reveal"><img class="portrait-photo" src="/profile.jpg?v=7" alt="Portrait of Angad Singh Sodhi with his motorcycle" hidden /><span aria-hidden="true">AS</span></div>
+        <div class="about-copy reveal">
+          <h2 id="about-title" data-i18n="aboutTitle">I build AI systems that survive contact with the real world.</h2>
+          <p data-i18n="aboutP1">I’m an applied AI engineer focused on RAG, agentic systems, and cloud MLOps. At CIMA+, I shipped a bilingual knowledge agent used by 700+ employees. Before that, I led enterprise vulnerability management at Reliance Jio.</p>
+          <p data-i18n="aboutP2">I’m completing an MEng in Software Engineering at Concordia University and looking for full-time AI/ML roles after graduating in December 2026.</p>
+        </div>
+      </section>
+
+      <section class="section" id="experience" aria-labelledby="experience-title">
+        <p class="section-label reveal" data-i18n="experienceLabel">Experience</p>
+        <h2 class="section-intro reveal" id="experience-title" data-i18n="experienceTitle">AI, security, and the engineering between them.</h2>
+        <p class="section-description reveal" data-i18n="experienceDescription">From production RAG and multi-agent platforms to enterprise vulnerability management and Java microservices.</p>
+        <div class="experience-list">
+          <article class="experience-card reveal">
+            <div class="experience-side"><span>2026</span><h3>CIMA+</h3><p data-i18n="cimaRole">Artificial Intelligence Intern</p></div>
+            <div class="experience-body">
+              <p data-i18n="cimaDescription">Shipped a bilingual RAG agent for 700+ employees, reducing manual document search time by 60%.</p>
+              <ul><li data-i18n="cimaDetail1">10,000+ pages · MinerU · OpenAI embeddings · ChromaDB</li><li data-i18n="cimaDetail2">FastAPI router · DistilBERT · ClearML · Datadog</li><li>Open WebUI · LiteLLM · Redis · Azure Container Apps</li></ul>
+            </div>
+          </article>
+          <article class="experience-card reveal">
+            <div class="experience-side"><span>2023—24</span><h3>Reliance Jio</h3><p data-i18n="jioRole">Deputy Manager, Cybersecurity</p></div>
+            <div class="experience-body">
+              <p data-i18n="jioDescription">Led vulnerability management across 40,000+ servers and quarterly assessments on 100,000+ devices.</p>
+              <ul><li data-i18n="jioDetail1">10,000+ exploitable vulnerabilities mitigated</li><li data-i18n="jioDetail2">99%+ assessment compliance · 30+ CIS policies</li><li data-i18n="jioDetail3">70% reduction in zero-day exposure</li></ul>
+            </div>
+          </article>
+          <article class="experience-card reveal">
+            <div class="experience-side"><span>2022</span><h3>IBM</h3><p data-i18n="ibmRole">Intern</p></div>
+            <div class="experience-body">
+              <p data-i18n="ibmDescription">Built a five-service e-commerce platform with Java, Spring Boot, Docker, and Jenkins.</p>
+              <ul><li>REST microservices · Spring Cloud</li><li>MySQL · MongoDB · Spring Security</li></ul>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="projects" aria-labelledby="projects-title">
+        <p class="section-label reveal" data-i18n="projectsLabel">Projects</p>
+        <h2 class="section-intro reveal" id="projects-title" data-i18n="projectsTitle">Selected builds from the co-op résumé.</h2>
+        <p class="section-description reveal" data-i18n-html="projectsDescription">Academic builds across blockchain, backend engineering, and quantitative software. More work lives on <a href="https://github.com/sodhi-007" target="_blank" rel="noopener noreferrer">GitHub</a>.</p>
+        <div class="project-grid">
+          <article class="project-card reveal"><div class="project-visual visual-chain" aria-hidden="true"><i></i><i></i><i></i></div><div class="project-content"><span>01 · Blockchain</span><h3 data-i18n="project1Title">Fake Product Identification</h3><p data-i18n="project1Description">Product and user portals backed by smart contracts to detect counterfeit products.</p><small data-i18n="project1Tags">Full-stack · Smart contracts · Security</small></div></article>
+          <article class="project-card reveal"><div class="project-visual visual-hub" aria-hidden="true"><b>django</b><i></i></div><div class="project-content"><span>02 · Django</span><h3 data-i18n="project2Title">University Information Hub</h3><p data-i18n="project2Description">A deployed information system that keeps students current with university activities.</p><small data-i18n="project2Tags">Backend · Database · Deployment</small></div></article>
+          <article class="project-card reveal"><div class="project-visual visual-chart" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><div class="project-content"><span>03 · Python</span><h3 data-i18n="project3Title">Quantitative Portfolio Manager</h3><p data-i18n="project3Description">A Jupyter-based portfolio manager using a high quantitative momentum strategy.</p><small data-i18n="project3Tags">Financial modelling · Data analysis</small></div></article>
+          <article class="project-card reveal"><div class="project-visual visual-crowd" aria-hidden="true"><b>◎</b><span>ETH</span></div><div class="project-content"><span>04 · Solidity</span><h3 data-i18n="project4Title">Blockchain Crowdfunding</h3><p data-i18n="project4Description">A decentralized crowdfunding platform with deployed Solidity smart contracts.</p><small data-i18n="project4Tags">DApps · Blockchain · Smart contracts</small></div></article>
+        </div>
+      </section>
+
+      <section class="section skills-section" id="skills" aria-labelledby="skills-title">
+        <p class="section-label reveal" data-i18n="skillsLabel">Skills</p>
+        <h2 class="section-intro reveal" id="skills-title" data-i18n="skillsTitle">A compact stack for production AI.</h2>
+        <div class="skill-lines reveal">
+          <p><b>AI &amp; LLM</b><span>RAG · Agents · LLM evaluation · DistilBERT · OpenAI · ChromaDB · LiteLLM</span></p>
+          <p><b data-i18n="skillCloud">Cloud &amp; MLOps</b><span>Azure Container Apps · AWS · Docker · Kubernetes · ClearML · Redis · Datadog</span></p>
+          <p><b data-i18n="skillEngineering">Engineering</b><span>Python · FastAPI · Java · Spring Boot · Django · REST · MySQL · MongoDB</span></p>
+          <p><b data-i18n="skillSecurity">Security</b><span>Tenable · Qualys · Trend Micro · Nmap · CIS benchmarks</span></p>
+        </div>
+      </section>
+
+      <section class="section" id="education" aria-labelledby="education-title">
+        <p class="section-label reveal" data-i18n="educationLabel">Education</p>
+        <h2 class="section-intro reveal" id="education-title" data-i18n="educationTitle">Software engineering, cloud, and security foundations.</h2>
+        <div class="education-list reveal">
+          <article><span>2025—26</span><div><h3>Concordia University</h3><p data-i18n="education1">MEng, Software Engineering (Co-op) · CGPA 3.47 / 4.30</p></div></article>
+          <article><span>2019—23</span><div><h3>University of Petroleum and Energy Studies</h3><p data-i18n="education2">BTech, Computer Science · Cloud Computing &amp; Virtualization · CGPA 7.87 / 10</p></div></article>
+          <article><span data-i18n="certified">Certified</span><div><h3>CEH · Microsoft AZ-900</h3><p data-i18n="certifications">Certified Ethical Hacker · Azure Fundamentals</p></div></article>
+        </div>
+      </section>
+    </main>
+
+    <section class="contact" id="contact" aria-labelledby="contact-title">
+      <p class="section-label" data-i18n="contactLabel">Contact</p>
+      <h2 id="contact-title" data-i18n="contactTitle">Let’s build something useful.</h2>
+      <p data-i18n="contactDescription">AI/ML roles, RAG systems, applied agents, or just a good engineering conversation.</p>
+      <a class="email-link" href="mailto:angadfzr123@gmail.com">angadfzr123@gmail.com <span>↗</span></a>
+      <div class="social-links"><a href="https://www.linkedin.com/in/angad-sodhi/" target="_blank" rel="noopener noreferrer">LinkedIn</a><a href="https://github.com/sodhi-007" target="_blank" rel="noopener noreferrer">GitHub</a></div>
+    </section>
+
+    <footer><span>© <b data-year></b> Angad Singh Sodhi</span><span>Montreal, QC</span></footer>
+
+    <button class="chat-launcher" type="button" data-chat-toggle aria-expanded="false" aria-controls="chat-panel"><span>✦</span><b data-i18n="chatLauncher">Ask Angad AI</b></button>
+    <aside class="chat-panel" id="chat-panel" data-chat hidden aria-label="Ask questions about Angad's résumé">
+      <div class="chat-header"><div><strong>Angad AI</strong><p><i></i><span data-mode-label>Checking…</span></p></div><button type="button" data-chat-close aria-label="Close chatbot">×</button></div>
+      <div class="chat-messages" data-messages aria-live="polite"><div class="message assistant-message"><span>AI</span><p data-i18n="chatWelcome">Ask me about Angad’s CIMA+ work, Jio experience, projects, stack, or education.</p></div></div>
+      <div class="suggestions" data-suggestions><button type="button" data-i18n="chatSuggestion1">What did Angad build at CIMA+?</button><button type="button" data-i18n="chatSuggestion2">Tell me about his projects</button></div>
+      <form class="chat-form" data-chat-form><label class="sr-only" for="chat-input" data-i18n="chatInputLabel">Ask about Angad's résumé</label><input id="chat-input" data-chat-input maxlength="800" placeholder="Ask about Angad…" data-i18n-placeholder="chatPlaceholder" autocomplete="off" /><button type="submit" aria-label="Send question" data-i18n-aria-label="chatSend">↑</button></form>
+    </aside>
+  </body>
+</html>

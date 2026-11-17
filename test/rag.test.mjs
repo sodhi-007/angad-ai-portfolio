@@ -1,0 +1,34 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { buildRagIndex, chunkPortfolio, localRagAnswer, retrieve } from "../lib/rag.mjs";
+
+const portfolio = JSON.parse(await readFile(new URL("../data/portfolio.json", import.meta.url), "utf8"));
+
+test("chunks editable portfolio content into retrieval evidence", () => {
+  const chunks = chunkPortfolio(portfolio);
+  assert.ok(chunks.length > 15);
+  assert.ok(chunks.some((chunk) => /10,000\+ pages/.test(chunk.text)));
+});
+
+test("retrieves specific CIMA evidence instead of a fixed topic paragraph", async () => {
+  const index = await buildRagIndex(portfolio);
+  const question = "Which database stored the engineering document embeddings at CIMA?";
+  const results = await retrieve(question, index, { limit: 3 });
+  assert.match(results[0].text, /ChromaDB/i);
+  assert.match(results[0].text, /10,000\+ pages/i);
+  assert.match(localRagAnswer(question, results), /^Angad used ChromaDB/);
+});
+
+test("retrieves project-specific evidence", async () => {
+  const index = await buildRagIndex(portfolio);
+  const results = await retrieve("What did Angad build with Solidity?", index, { limit: 2 });
+  assert.match(results[0].text, /crowdfunding/i);
+});
+
+test("answers total experience from retrieved evidence", async () => {
+  const index = await buildRagIndex(portfolio);
+  const question = "How much total professional experience does Angad have?";
+  const results = await retrieve(question, index, { limit: 4 });
+  assert.match(localRagAnswer(question, results), /2 years and 6 months/i);
+});

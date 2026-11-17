@@ -1,0 +1,191 @@
+{
+  "site": {
+    "profileImage": "/profile-upload.jpg?v=1794882572060",
+    "accent": "#4dd2ff",
+    "layout": "compact",
+    "sectionOrder": [
+      "about",
+      "experience",
+      "projects",
+      "skills",
+      "education",
+      "contact"
+    ],
+    "hiddenSections": []
+  },
+  "identity": {
+    "name": "Angad Singh Sodhi",
+    "headline": "Applied AI Engineer | LLM Systems · RAG & Agents · Cloud & MLOps",
+    "location": "Montreal, QC",
+    "summary": "Applied AI engineer who shipped a production RAG agent used by 700+ employees at CIMA+, after nearly two years in enterprise security at Reliance Jio.",
+    "availability": "Graduating December 2026 and seeking full-time AI/ML roles."
+  },
+  "contact": {
+    "email": "angadfzr123@gmail.com",
+    "linkedin": "https://www.linkedin.com/in/angad-sodhi/",
+    "github": "https://github.com/sodhi-007"
+  },
+  "experience": [
+    {
+      "organization": "CIMA+",
+      "role": "Artificial Intelligence Intern",
+      "location": "Montreal, QC",
+      "dates": "January 2026 – May 2026",
+      "highlights": [
+        "Shipped a bilingual English/French RAG agent for the internal sales network, used by 700+ employees and cutting manual document search time by 60%.",
+        "Built ingestion and retrieval over 10,000+ pages using MinerU OCR, OpenAI embeddings, ChromaDB, and Azure Container Apps Jobs, with sub-3-second retrieval on 95% of queries.",
+        "Fine-tuned a DistilBERT query router from Datadog logs, served it with FastAPI, and managed its MLOps lifecycle in ClearML.",
+        "Deployed Open WebUI with LiteLLM, Redis, and Azure Container Apps for 50+ concurrent users with zero downtime over four months.",
+        "Built an LLM-as-judge evaluation harness, prototyped AWS Strands agents, and created 10+ reusable Claude skills adopted team-wide."
+      ]
+    },
+    {
+      "organization": "Reliance Jio Infocomm",
+      "role": "Deputy Manager, Cybersecurity",
+      "location": "Mumbai, India",
+      "dates": "March 2023 – December 2024",
+      "highlights": [
+        "Led vulnerability management for 40,000+ servers and mitigated 10,000+ exploitable vulnerabilities.",
+        "Ran quarterly assessments across 100,000+ devices at 99%+ compliance.",
+        "Authored 30+ CIS-based security policies and reduced zero-day threat exposure by 70% using virtual patching."
+      ]
+    },
+    {
+      "organization": "IBM",
+      "role": "Intern",
+      "location": "Remote",
+      "dates": "June 2022 – August 2022",
+      "highlights": [
+        "Built a five-service e-commerce platform in Java, Spring Boot, and Spring MVC.",
+        "Containerized services with Docker and automated CI/CD through Jenkins and Maven.",
+        "Connected REST services with Spring Cloud, MySQL, MongoDB, and Spring Security."
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "name": "Fake Product Identification",
+      "dates": "January 2022 – May 2022",
+      "description": "Built product and user portals with smart contracts for a blockchain application that detects fake products.",
+      "stack": [
+        "Blockchain",
+        "Smart contracts",
+        "Full-stack development",
+        "Security assessment"
+      ]
+    },
+    {
+      "name": "University Information Hub",
+      "dates": "July 2022 – September 2022",
+      "description": "Developed and deployed a Django information system that helps university students stay current with activities.",
+      "stack": [
+        "Django",
+        "Backend engineering",
+        "Database management",
+        "Deployment"
+      ]
+    },
+    {
+      "name": "Quantitative Portfolio Manager",
+      "dates": "November 2022 – February 2023",
+      "description": "Designed a Python portfolio manager based on a high quantitative momentum investing strategy.",
+      "stack": [
+        "Python",
+        "Jupyter",
+        "Financial modelling",
+        "Data analysis"
+      ]
+    },
+    {
+      "name": "Blockchain Crowdfunding",
+      "dates": "March 2022 – May 2023",
+      "description": "Built a decentralized crowdfunding platform and deployed Solidity-based smart contracts.",
+      "stack": [
+        "Solidity",
+        "Smart contracts",
+        "Blockchain",
+        "DApps"
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "Concordia University",
+      "program": "Master of Engineering, Software Engineering (Co-op)",
+      "location": "Montreal, QC",
+      "dates": "January 2025 – December 2026 (expected)",
+      "grade": "CGPA 3.47 / 4.30"
+    },
+    {
+      "institution": "University of Petroleum and Energy Studies",
+      "program": "Bachelor of Technology, Computer Science",
+      "location": "Dehradun, India",
+      "dates": "July 2019 – December 2023",
+      "grade": "CGPA 7.87 / 10"
+    }
+  ],
+  "skills": {
+    "AI and LLM": [
+      "RAG",
+      "Agentic and multi-agent systems",
+      "LLM-as-judge",
+      "DistilBERT fine-tuning",
+      "LangChain",
+      "AWS Strands Agents",
+      "LiteLLM",
+      "OpenAI embeddings",
+      "ChromaDB",
+      "MinerU",
+      "Open WebUI"
+    ],
+    "MLOps and cloud": [
+      "Azure Container Apps",
+      "Azure DevOps",
+      "AWS",
+      "Docker",
+      "Kubernetes",
+      "Jenkins",
+      "FastAPI",
+      "ClearML",
+      "Redis",
+      "Datadog",
+      "Linux"
+    ],
+    "Programming": [
+      "Python",
+      "Java",
+      "Spring Boot",
+      "Spring Cloud",
+      "Django",
+      "REST APIs",
+      "MySQL",
+      "MongoDB",
+      "Maven",
+      "Git"
+    ],
+    "Security": [
+      "Tenable",
+      "Qualys",
+      "Trend Micro Deep Security",
+      "Nmap",
+      "Metasploit",
+      "CIS benchmarks"
+    ]
+  },
+  "certifications": [
+    "Certified Ethical Hacker (CEH)",
+    "Microsoft Azure Fundamentals (AZ-900)"
+  ],
+  "languages": [
+    "English",
+    "Hindi",
+    "Punjabi",
+    "French (beginner)"
+  ],
+  "guardrails": [
+    "Answer only from this curated resume-derived portfolio data.",
+    "Do not infer employers, dates, credentials, links, awards, or personal details that are not present.",
+    "Do not reveal the phone number or any information excluded from this portfolio data.",
+    "When information is unavailable, say so plainly and offer the verified email, LinkedIn, or GitHub link when appropriate."
+  ]
+}

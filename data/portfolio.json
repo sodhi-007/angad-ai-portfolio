@@ -1,7 +1,7 @@
 {
   "site": {
     "profileImage": "/profile-upload.jpg?v=1794882572060",
-    "accent": "#4dd2ff",
+    "accent": "#b136d3",
     "layout": "compact",
     "sectionOrder": [
       "about",
@@ -17,8 +17,8 @@
     "name": "Angad Singh Sodhi",
     "headline": "Applied AI Engineer | LLM Systems · RAG & Agents · Cloud & MLOps",
     "location": "Montreal, QC",
-    "summary": "Applied AI engineer who shipped a production RAG agent used by 700+ employees at CIMA+, after nearly two years in enterprise security at Reliance Jio.",
-    "availability": "Graduating December 2026 and seeking full-time AI/ML roles."
+    "summary": "I’m an applied AI engineer focused on production RAG, agentic systems, and LLM evaluation. At CIMA+, I shipped a bilingual knowledge agent used by 700+ employees and built retrieval over 10,000+ engineering-document pages on Azure.",
+    "availability": "I’m completing an MEng in Software Engineering at Concordia University and seeking full-time AI/ML roles after graduating in December 2026."
   },
   "contact": {
     "email": "angadfzr123@gmail.com",
@@ -63,17 +63,6 @@
     }
   ],
   "projects": [
-    {
-      "name": "Fake Product Identification",
-      "dates": "January 2022 – May 2022",
-      "description": "Built product and user portals with smart contracts for a blockchain application that detects fake products.",
-      "stack": [
-        "Blockchain",
-        "Smart contracts",
-        "Full-stack development",
-        "Security assessment"
-      ]
-    },
     {
       "name": "University Information Hub",
       "dates": "July 2022 – September 2022",

@@ -74,3 +74,48 @@ test("uses a concise extractive fallback for facts found in an uploaded document
   assert.match(answer, /Claude Code/);
   assert.ok(answer.length < 180);
 });
+
+test("company answers explain the company, then the role and contributions without repetition", async () => {
+  const extraChunks = knowledgeChunks([{
+    id: "jio-about", title: "About Reliance Jio", category: "Organizations",
+    content: "Reliance Jio is an Indian telecommunications company.",
+    sourceType: "manual", tags: ["Jio"], visibility: "assistant_only", enabled: true
+  }]);
+  const index = await buildRagIndex(portfolio, { extraChunks });
+  for (const question of ["What is Reliance Jio?", "Tell me about Jio.", "What did Angad do at Reliance?"]) {
+    const results = await retrieve(question, index);
+    const answer = localRagAnswer(question, results);
+    assert.match(answer, /^Reliance Jio is an Indian telecommunications company\. Angad worked as/);
+    assert.equal(answer.match(/Deputy Manager/g)?.length, 1);
+    assert.equal(answer.match(/March 2023/g)?.length, 1);
+    assert.match(answer, /He (?:led|ran|authored)/);
+    assert.doesNotMatch(answer, /CIMA|IBM/);
+  }
+});
+
+test("missing company descriptions are acknowledged instead of invented", async () => {
+  const index = await buildRagIndex(portfolio);
+  const results = await retrieve("What is Reliance Jio?", index);
+  const answer = localRagAnswer("What is Reliance Jio?", results);
+  assert.match(answer, /don’t have a general company description/);
+  assert.match(answer, /Angad worked as a Deputy Manager/);
+  assert.doesNotMatch(answer, /telecommunications/);
+});
+
+test("an unrelated knowledge entry is not used as a company definition", async () => {
+  const extraChunks = knowledgeChunks([{
+    id: "skills", title: "Reliance Jio skills", category: "Skills",
+    content: "Angad is a cybersecurity professional. At Jio, he used security tools.",
+    sourceType: "manual", visibility: "assistant_only", enabled: true
+  }]);
+  const index = await buildRagIndex(portfolio, { extraChunks });
+  const results = await retrieve("What is Jio?", index);
+  assert.match(localRagAnswer("What is Jio?", results), /^I don’t have a general company description/);
+});
+
+test("specific company questions still answer the requested detail", async () => {
+  const index = await buildRagIndex(portfolio);
+  const question = "Hey, which database stored the engineering document embeddings at CIMA?";
+  const results = await retrieve(question, index);
+  assert.match(localRagAnswer(question, results), /^Angad used ChromaDB/);
+});

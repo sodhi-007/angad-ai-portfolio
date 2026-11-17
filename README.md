@@ -56,6 +56,16 @@ The library starts with an assistant-only entry describing CIMA+ from the compan
 
 ## Enable live AI answers (optional)
 
+### Assistant behavior
+
+Edit `SYSTEM_PROMPT` in `lib/assistant-behavior.mjs` to change the assistant's role, tone, answer structure, and grounding rules. `server.mjs` passes this prompt to the language model and supplies retrieved evidence separately as reference data.
+
+The same module handles greetings (including "yo" and "wassup"), introductions, thanks, and goodbyes before retrieval or any AI request. Recent chat history prevents repeated introductions. A greeting followed by a factual question still reaches retrieval.
+
+Without an API key, `lib/rag.mjs` composes company overviews from retrieved company descriptions, one role summary, and up to two distinct contributions. Add company descriptions as enabled knowledge entries in the owner portal, for example a sourced sentence beginning "Company name is ...". Missing descriptions are acknowledged, not fabricated. Specific questions keep their focused retrieval path. Local mode preserves source language for extracted facts; fluent paraphrasing, translation, and contextual follow-ups require the AI mode.
+
+After changing the prompt or response code, commit the changes to the deployed GitHub branch and deploy that commit on Render. Preserve owner-portal data and uploaded documents before redeploying if the service uses ephemeral storage.
+
 The chatbot already works without a key. To enable live, grounded answers, set environment variables only on the server:
 
 ```bash

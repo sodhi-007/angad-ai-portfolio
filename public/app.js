@@ -280,15 +280,33 @@ chatToggle.addEventListener("click", () => setChat(chat.hidden));
 chatClose.addEventListener("click", () => setChat(false));
 document.addEventListener("keydown", (event) => { if (event.key === "Escape") { setChat(false); setMenu(false); } });
 
-function appendMessage(role, content, temporary = false) {
+function appendMessage(role, content, temporary = false, sources = []) {
   const wrapper = document.createElement("div");
   wrapper.className = `message ${role === "user" ? "user-message" : "assistant-message"}${temporary ? " typing" : ""}`;
   const avatar = document.createElement("span");
   avatar.textContent = role === "user" ? "YOU" : "AI";
+  const bubble = document.createElement("div");
+  bubble.className = "message-bubble";
   const paragraph = document.createElement("p");
   if (temporary) paragraph.innerHTML = "<span>·</span><span>·</span><span>·</span>";
   else paragraph.textContent = content;
-  wrapper.append(avatar, paragraph);
+  bubble.append(paragraph);
+  const cited = [...new Map((sources || []).filter((source) => /^https:\/\//i.test(source.sourceUrl || "")).map((source) => [source.sourceUrl, source])).values()];
+  if (cited.length) {
+    const sourceList = document.createElement("div");
+    sourceList.className = "message-sources";
+    sourceList.append(document.createTextNode("Sources: "));
+    cited.slice(0, 3).forEach((source) => {
+      const link = document.createElement("a");
+      link.href = source.sourceUrl;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.textContent = source.title || new URL(source.sourceUrl).hostname;
+      sourceList.append(link);
+    });
+    bubble.append(sourceList);
+  }
+  wrapper.append(avatar, bubble);
   messages.append(wrapper);
   messages.scrollTop = messages.scrollHeight;
   return wrapper;
@@ -306,7 +324,7 @@ async function sendMessage(question) {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Unable to answer right now.");
     typing.remove();
-    appendMessage("assistant", data.answer);
+    appendMessage("assistant", data.answer, false, data.sources || []);
     history = [...history, { role: "user", content: message }, { role: "assistant", content: data.answer }].slice(-8);
     chatMode = data.mode === "ai" ? "ai" : "local";
     updateModeLabel();

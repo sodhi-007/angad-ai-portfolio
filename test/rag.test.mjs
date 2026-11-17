@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { buildRagIndex, chunkPortfolio, localRagAnswer, retrieve } from "../lib/rag.mjs";
+import { knowledgeChunks } from "../lib/knowledge-store.mjs";
 
 const portfolio = JSON.parse(await readFile(new URL("../data/portfolio.json", import.meta.url), "utf8"));
 
@@ -31,4 +32,23 @@ test("answers total experience from retrieved evidence", async () => {
   const question = "How much total professional experience does Angad have?";
   const results = await retrieve(question, index, { limit: 4 });
   assert.match(localRagAnswer(question, results), /2 years and 6 months/i);
+});
+
+test("answers organization definitions from the curated web knowledge library", async () => {
+  const extraChunks = knowledgeChunks([{
+    id: "cima",
+    title: "What is CIMA+?",
+    category: "Organizations",
+    content: "CIMA+ is a Canadian consulting engineering firm that provides services across infrastructure, transportation, buildings, energy, and environmental disciplines.",
+    sourceType: "web",
+    sourceUrl: "https://www.cima.ca/en/about-us/",
+    tags: ["CIMA+"],
+    visibility: "assistant_only",
+    enabled: true
+  }]);
+  const index = await buildRagIndex(portfolio, { extraChunks });
+  const results = await retrieve("What is CIMA+?", index, { limit: 3 });
+  const answer = localRagAnswer("What is CIMA+?", results);
+  assert.match(answer, /Canadian consulting engineering firm/i);
+  assert.equal(results.find((result) => result.id.startsWith("knowledge-"))?.metadata.sourceUrl, "https://www.cima.ca/en/about-us/");
 });

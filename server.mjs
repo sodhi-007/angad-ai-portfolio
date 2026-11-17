@@ -3,11 +3,15 @@ import { readFile, rename, writeFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomBytes, timingSafeEqual } from "node:crypto";
+import { lookup } from "node:dns/promises";
+import { isIP } from "node:net";
 import { buildRagIndex, localRagAnswer, retrieve } from "./lib/rag.mjs";
+import { KnowledgeStore, knowledgeChunks } from "./lib/knowledge-store.mjs";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
 const publicDirectory = join(root, "public");
 const dataFile = process.env.PORTFOLIO_DATA_FILE || join(root, "data", "portfolio.json");
+const knowledgeDatabaseFile = process.env.KNOWLEDGE_DB_FILE || join(root, "data", "knowledge.sqlite");
 const port = Number(process.env.PORT || 4173);
 const host = process.env.HOST || "127.0.0.1";
 const model = process.env.OPENAI_MODEL || "gpt-6-luna";
@@ -17,7 +21,18 @@ const rateLimits = new Map();
 const sessions = new Map();
 
 let portfolio = JSON.parse(await readFile(dataFile, "utf8"));
-let ragIndex = await buildRagIndex(portfolio, { apiKey: process.env.OPENAI_API_KEY, embeddingModel });
+const knowledgeStore = new KnowledgeStore(knowledgeDatabaseFile);
+let ragIndex;
+
+async function rebuildRagIndex() {
+  ragIndex = await buildRagIndex(portfolio, {
+    apiKey: process.env.OPENAI_API_KEY,
+    embeddingModel,
+    extraChunks: knowledgeChunks(knowledgeStore.list())
+  });
+}
+
+await rebuildRagIndex();
 
 const contentTypes = {
   ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8",
@@ -106,7 +121,75 @@ async function savePortfolio(nextPortfolio) {
   await writeFile(temporaryFile, `${JSON.stringify(validated, null, 2)}\n`, "utf8");
   await rename(temporaryFile, dataFile);
   portfolio = validated;
-  ragIndex = await buildRagIndex(portfolio, { apiKey: process.env.OPENAI_API_KEY, embeddingModel });
+  await rebuildRagIndex();
+}
+
+function isPrivateAddress(address) {
+  if (isIP(address) === 4) {
+    const parts = address.split(".").map(Number);
+    return parts[0] === 10 || parts[0] === 127 || parts[0] === 0 ||
+      (parts[0] === 169 && parts[1] === 254) || (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
+      (parts[0] === 192 && parts[1] === 168) || parts[0] >= 224;
+  }
+  const normalized = address.toLowerCase();
+  return normalized === "::1" || normalized === "::" || normalized.startsWith("fc") || normalized.startsWith("fd") ||
+    normalized.startsWith("fe8") || normalized.startsWith("fe9") || normalized.startsWith("fea") || normalized.startsWith("feb");
+}
+
+async function validateRemoteUrl(value) {
+  let url;
+  try { url = new URL(String(value || "")); } catch { throw new Error("Enter a valid HTTPS URL."); }
+  if (url.protocol !== "https:" || (url.port && url.port !== "443") || url.username || url.password) throw new Error("Only public HTTPS URLs are allowed.");
+  if (url.hostname === "localhost" || url.hostname.endsWith(".local")) throw new Error("Local network URLs are not allowed.");
+  const addresses = await lookup(url.hostname, { all: true });
+  if (!addresses.length || addresses.some(({ address }) => isPrivateAddress(address))) throw new Error("Private or local network URLs are not allowed.");
+  return url;
+}
+
+function decodeHtml(value) {
+  return value.replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&quot;/gi, "\"")
+    .replace(/&#39;|&apos;/gi, "'").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)));
+}
+
+function extractWebText(html) {
+  const title = decodeHtml((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] || "").replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
+  const text = decodeHtml(html
+    .replace(/<(script|style|noscript|svg|form|nav|header|footer)[^>]*>[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<!--([\s\S]*?)-->/g, " ")
+    .replace(/<[^>]+>/g, " "))
+    .replace(/\s+/g, " ").trim().slice(0, 50_000);
+  if (text.length < 80) throw new Error("The page did not contain enough readable text.");
+  return { title, text };
+}
+
+async function fetchWebSource(value, redirectCount = 0) {
+  const url = await validateRemoteUrl(value);
+  const result = await fetch(url, {
+    redirect: "manual",
+    headers: { "User-Agent": "AngadPortfolioKnowledgeBot/1.0", "Accept": "text/html,text/plain;q=0.9" },
+    signal: AbortSignal.timeout(15_000)
+  });
+  if ([301, 302, 303, 307, 308].includes(result.status)) {
+    if (redirectCount >= 3) throw new Error("The web page redirected too many times.");
+    const location = result.headers.get("location");
+    if (!location) throw new Error("The web page returned an invalid redirect.");
+    return fetchWebSource(new URL(location, url).toString(), redirectCount + 1);
+  }
+  if (!result.ok) throw new Error(`The web page returned HTTP ${result.status}.`);
+  const contentType = result.headers.get("content-type") || "";
+  if (!contentType.includes("text/html") && !contentType.includes("text/plain")) throw new Error("Only HTML or plain-text web pages can be imported.");
+  const contentLength = Number(result.headers.get("content-length") || 0);
+  if (contentLength > 1_200_000) throw new Error("The web page is too large to import.");
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of result.body) {
+    size += chunk.byteLength;
+    if (size > 1_200_000) throw new Error("The web page is too large to import.");
+    chunks.push(Buffer.from(chunk));
+  }
+  const body = Buffer.concat(chunks).toString("utf8");
+  const extracted = contentType.includes("text/plain") ? { title: "", text: body.trim().slice(0, 50_000) } : extractWebText(body);
+  return { ...extracted, url: url.toString(), fetchedAt: new Date().toISOString() };
 }
 
 async function askOpenAI(message, history, language, evidence) {
@@ -140,7 +223,12 @@ async function handleChat(request, response) {
     const language = requestedLanguage === "fr" ? "fr" : "en";
     if (typeof message !== "string" || !message.trim() || message.length > 800) return sendJson(response, 400, { error: "Message must be between 1 and 800 characters." });
     const evidence = await retrieve(message.trim(), ragIndex, { apiKey: process.env.OPENAI_API_KEY, limit: 4 });
-    const sources = evidence.filter((item) => item.score > 0).map(({ id, title, score }) => ({ id, title, score: Number(score.toFixed(3)) }));
+    const sources = evidence.filter((item) => item.score > 0).map(({ id, title, score, metadata }) => ({
+      id,
+      title,
+      score: Number(score.toFixed(3)),
+      sourceUrl: metadata?.sourceUrl || ""
+    }));
     if (!process.env.OPENAI_API_KEY) return sendJson(response, 200, { answer: localRagAnswer(message, evidence, language), mode: "retrieval", retrievalMode: ragIndex.mode, sources });
     try {
       const answer = await askOpenAI(message.trim(), history, language, evidence);
@@ -165,7 +253,12 @@ async function handleAdmin(request, response, url) {
   }
   if (!isAdmin(request)) return sendJson(response, 401, { error: "Sign in to the owner portal." });
   if (["PUT", "POST", "DELETE"].includes(request.method) && request.headers["x-admin-request"] !== "1") return sendJson(response, 403, { error: "Invalid editor request." });
-  if (url.pathname === "/api/admin/state" && request.method === "GET") return sendJson(response, 200, { portfolio, rag: { mode: ragIndex.mode, chunks: ragIndex.chunks.length, model: ragIndex.model }, localAccess: !adminPassword });
+  if (url.pathname === "/api/admin/state" && request.method === "GET") return sendJson(response, 200, {
+    portfolio,
+    knowledge: knowledgeStore.list(),
+    rag: { mode: ragIndex.mode, chunks: ragIndex.chunks.length, model: ragIndex.model },
+    localAccess: !adminPassword
+  });
   if (url.pathname === "/api/admin/logout" && request.method === "POST") {
     const token = cookies(request).portfolio_admin;
     if (token) sessions.delete(token);
@@ -175,6 +268,29 @@ async function handleAdmin(request, response, url) {
     const body = await readJsonBody(request, 300_000);
     await savePortfolio(body.portfolio);
     return sendJson(response, 200, { ok: true, portfolio, rag: { mode: ragIndex.mode, chunks: ragIndex.chunks.length } });
+  }
+  if (url.pathname === "/api/admin/knowledge" && request.method === "PUT") {
+    const body = await readJsonBody(request, 3_000_000);
+    const knowledge = knowledgeStore.replaceAll(body.items);
+    await rebuildRagIndex();
+    return sendJson(response, 200, { ok: true, knowledge, rag: { mode: ragIndex.mode, chunks: ragIndex.chunks.length } });
+  }
+  if (url.pathname === "/api/admin/knowledge/import-url" && request.method === "POST") {
+    const body = await readJsonBody(request, 20_000);
+    const imported = await fetchWebSource(body.url);
+    const item = knowledgeStore.upsert({
+      title: String(body.title || imported.title || new URL(imported.url).hostname),
+      category: String(body.category || "Web sources"),
+      content: imported.text,
+      sourceType: "web",
+      sourceUrl: imported.url,
+      tags: body.tags,
+      visibility: "assistant_only",
+      enabled: true,
+      fetchedAt: imported.fetchedAt
+    });
+    await rebuildRagIndex();
+    return sendJson(response, 200, { ok: true, item, knowledge: knowledgeStore.list(), rag: { mode: ragIndex.mode, chunks: ragIndex.chunks.length } });
   }
   if (url.pathname === "/api/admin/profile" && request.method === "POST") {
     const body = await readJsonBody(request, 9_000_000);
@@ -229,5 +345,6 @@ const server = createServer(async (request, response) => {
 server.listen(port, host, () => {
   console.log(`Portfolio running at http://${host}:${port}`);
   console.log(`Chat mode: ${process.env.OPENAI_API_KEY ? `${model} + ${ragIndex.mode} retrieval` : "local ranked retrieval"}`);
+  console.log(`Knowledge database: ${knowledgeStore.list().length} sources`);
   console.log(`Owner portal: http://${host}:${port}/admin.html${adminPassword ? " (password protected)" : " (local access)"}`);
 });

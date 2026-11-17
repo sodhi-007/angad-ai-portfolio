@@ -6,6 +6,7 @@
     <meta name="robots" content="noindex,nofollow" />
     <title>Angad Portfolio Studio</title>
     <link rel="stylesheet" href="/admin.css?v=1" />
+    <link rel="stylesheet" href="/admin-knowledge.css?v=1" />
     <script src="/admin.js?v=1" defer></script>
   </head>
   <body>
@@ -25,7 +26,7 @@
 
       <div class="studio" data-studio hidden>
         <aside class="studio-nav">
-          <a href="#overview">Overview</a><a href="#layout">Layout</a><a href="#profile">Profile</a><a href="#experience">Experience</a><a href="#projects">Projects</a><a href="#skills">Skills</a><a href="#education">Education</a><a href="#contact">Contact</a>
+          <a href="#overview">Overview</a><a href="#layout">Layout</a><a href="#profile">Profile</a><a href="#knowledge">Knowledge</a><a href="#experience">Experience</a><a href="#projects">Projects</a><a href="#skills">Skills</a><a href="#education">Education</a><a href="#contact">Contact</a>
         </aside>
 
         <div class="studio-content">
@@ -43,6 +44,20 @@
           <section class="panel" id="profile">
             <div class="panel-heading"><div><span class="eyebrow">IDENTITY</span><h2>Profile and portrait</h2></div><p>Update your positioning statement and public image.</p></div>
             <div class="profile-editor"><div class="portrait-upload"><img data-profile-preview alt="Current profile" /><label class="upload-button">Change photo<input type="file" accept="image/jpeg,image/png,image/webp" data-profile-file /></label><small>JPEG, PNG, or WebP · max 6 MB</small></div><div class="field-grid"><label>Name<input data-identity-field="name" /></label><label>Headline<input data-identity-field="headline" /></label><label>Location<input data-identity-field="location" /></label><label>Availability<input data-identity-field="availability" /></label><label class="wide">Summary<textarea rows="4" data-identity-field="summary"></textarea></label></div></div>
+          </section>
+
+          <section class="panel" id="knowledge">
+            <div class="panel-heading"><div><span class="eyebrow">CHATBOT MEMORY</span><h2>Knowledge library</h2></div><button type="button" class="add-button" data-add="knowledge">+ Add note</button></div>
+            <p class="panel-description">Add facts in your own words or import a trusted HTTPS page. Enabled public and assistant-only entries are indexed for retrieval; private entries stay out of chatbot answers.</p>
+            <form class="web-import" data-web-import>
+              <label class="wide">Trusted page URL<input type="url" name="url" placeholder="https://www.cima.ca/en/about-us/" required /></label>
+              <label>Title <input name="title" placeholder="What is CIMA+?" /></label>
+              <label>Category <input name="category" placeholder="Organizations" /></label>
+              <label>Tags <input name="tags" placeholder="CIMA+, employer, engineering" /></label>
+              <button type="submit" class="primary">Import page</button>
+            </form>
+            <p class="import-message" data-import-message aria-live="polite"></p>
+            <div class="repeater knowledge-repeater" data-repeater="knowledge"></div>
           </section>
 
           <section class="panel" id="experience"><div class="panel-heading"><div><span class="eyebrow">CAREER</span><h2>Experience</h2></div><button type="button" class="add-button" data-add="experience">+ Add role</button></div><div class="repeater" data-repeater="experience"></div></section>

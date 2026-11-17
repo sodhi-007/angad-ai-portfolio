@@ -6,7 +6,7 @@ The project has no runtime dependencies. Node serves the website, an owner editi
 
 ## Run locally
 
-Requirements: Node.js 20 or newer.
+Requirements: Node.js 22.13 or newer (the project uses Node's built-in SQLite database).
 
 ```bash
 cd portfolio-site
@@ -42,9 +42,14 @@ Use `/admin.html` to:
 - reorder or hide website sections;
 - switch compact/standard spacing and change the accent colour;
 - upload a new profile image;
+- add manual facts to a searchable knowledge library;
+- import selected public HTTPS pages as trusted chatbot sources;
+- mark knowledge as public, assistant-only, private, enabled, or disabled;
 - save changes and rebuild the chatbot retrieval index.
 
-Changes are written to `data/portfolio.json`. The profile upload is saved in `public/`.
+Portfolio changes are written to `data/portfolio.json`. Extra chatbot knowledge is stored in the local SQLite database at `data/knowledge.sqlite`; set `KNOWLEDGE_DB_FILE` to place it elsewhere. The profile upload is saved in `public/`.
+
+The library starts with an assistant-only entry describing CIMA+ from the company's official About page. Web access is curated rather than unrestricted: the owner chooses each page to import, the server accepts public HTTPS HTML/text pages only, blocks local/private network addresses, extracts readable text, records the source URL, and rebuilds retrieval. This keeps answers grounded and prevents the assistant from treating arbitrary search results as facts.
 
 ## Enable live AI answers (optional)
 
@@ -58,28 +63,29 @@ export ADMIN_PASSWORD="choose-a-long-unique-password"
 npm start
 ```
 
-Do not add the key or admin password to browser JavaScript, HTML, a public repository, or a committed `.env` file. The server retrieves the most relevant portfolio chunks, sends those chunks plus recent chat context to the Responses API, requests `store: false`, and falls back to local retrieval if the API is unavailable.
+Do not add the key or admin password to browser JavaScript, HTML, a public repository, or a committed `.env` file. The server retrieves the most relevant portfolio and SQLite knowledge chunks, sends those chunks plus recent chat context to the Responses API, requests `store: false`, and falls back to local retrieval if the API is unavailable. The public chat displays links for retrieved web sources.
 
 ## Deploy
 
-Because the chatbot uses `/api/chat`, deploy this as a small Node service rather than as a static-only GitHub Pages site.
+Because the chatbot uses `/api/chat` and SQLite, deploy this as a small Node service rather than as a static-only GitHub Pages site. A deployment must preserve both `data/portfolio.json` and `data/knowledge.sqlite` if you want owner-portal edits to survive restarts.
 
 ### Azure Container Apps
 
-Build a container from the included `Dockerfile`, deploy it to Azure Container Apps, and add `OPENAI_API_KEY` and `ADMIN_PASSWORD` as secret-backed environment variables. The image already sets `HOST=0.0.0.0` and `PORT=4173`; public container ingress should target port 4173. Because the owner portal writes portfolio data and images, mount persistent storage and point `PORTFOLIO_DATA_FILE` to the mounted JSON path before relying on edits in production.
+Build a container from the included `Dockerfile`, deploy it to Azure Container Apps, and add `OPENAI_API_KEY` and `ADMIN_PASSWORD` as secret-backed environment variables. The image already sets `HOST=0.0.0.0` and `PORT=4173`; public container ingress should target port 4173. Because the owner portal writes portfolio data, knowledge, and images, mount persistent storage and point `PORTFOLIO_DATA_FILE` and `KNOWLEDGE_DB_FILE` to mounted paths before relying on edits in production.
 
 ### Render, Railway, Fly.io, or another Node host
 
 - Build command: none required
 - Start command: `npm start`
-- Runtime: Node 20+
+- Runtime: Node 22.13+
 - Optional secret: `OPENAI_API_KEY`
 - Required secret for remote editing: `ADMIN_PASSWORD`
 - Optional variable: `OPENAI_MODEL=gpt-6-luna`
 - Optional variable: `OPENAI_EMBEDDING_MODEL=text-embedding-3-small`
+- Optional variable: `KNOWLEDGE_DB_FILE=/persistent/path/knowledge.sqlite`
 - Health endpoint: `/api/health`
 
-If you want static hosting, publish `public/` and point the chat request to a separately hosted serverless endpoint. Never put the API key in client-side code.
+For a free-tier target, the next deployment step is Cloudflare Workers plus D1. D1 is SQLite-compatible, but it uses a platform binding rather than Node's local database API, so it needs a small storage-adapter migration. This keeps the public site, API, and persistent knowledge database together. Static hosting alone is insufficient for the editor and chatbot. Never put the API key in client-side code.
 
 ## Security notes
 
@@ -90,5 +96,6 @@ If you want static hosting, publish `public/` and point the chat request to a se
 - The owner portal uses an HTTP-only, same-site session cookie and requires a server-side password when accessed remotely.
 - Model instructions restrict answers to retrieved portfolio evidence.
 - The no-key fallback returns locally retrieved evidence rather than fixed intent answers.
+- Imported web sources are HTTPS-only, size-limited, and screened against private/local addresses.
 
 For a public production launch, add an external rate limiter or bot protection at the hosting edge and review privacy/consent language for your jurisdiction.

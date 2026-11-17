@@ -1,0 +1,85 @@
+.panel-description {
+  max-width: 720px;
+  color: var(--muted);
+}
+
+.web-import {
+  margin: 22px 0 8px;
+  padding: 18px;
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr auto;
+  align-items: end;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: #0f1213;
+}
+
+.web-import label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.web-import .wide {
+  grid-column: 1 / -1;
+}
+
+.web-import button {
+  min-height: 42px;
+}
+
+.import-message {
+  min-height: 21px;
+  margin: 0 0 10px;
+  color: var(--muted);
+}
+
+.source-badge {
+  display: inline-block;
+  margin: -7px 0 16px;
+  padding: 4px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: .1em;
+}
+
+.source-badge.web {
+  border-color: rgba(159, 220, 114, .35);
+  color: var(--accent);
+}
+
+.toggle-field {
+  display: flex !important;
+  flex-direction: row;
+  align-items: center;
+  gap: 9px !important;
+}
+
+.toggle-field input {
+  width: auto;
+}
+
+.knowledge-repeater {
+  margin-top: 8px;
+}
+
+@media (max-width: 900px) {
+  .web-import {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .web-import {
+    grid-template-columns: 1fr;
+  }
+
+  .web-import .wide {
+    grid-column: auto;
+  }
+}

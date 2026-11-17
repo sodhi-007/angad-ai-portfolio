@@ -7,6 +7,7 @@ const saveMessage = document.querySelector("[data-save-message]");
 const logoutButton = document.querySelector("[data-logout]");
 let portfolio;
 let skillsDraft = [];
+let knowledge = [];
 let dirty = false;
 
 function setDirty(value = true, message = "Unsaved changes") {
@@ -53,6 +54,62 @@ function card(title) {
   heading.textContent = title;
   article.append(heading);
   return article;
+}
+
+function selectField(label, value, options, onChange) {
+  const wrapper = document.createElement("label");
+  wrapper.textContent = label;
+  const select = document.createElement("select");
+  options.forEach(([optionValue, optionLabel]) => {
+    const option = document.createElement("option");
+    option.value = optionValue;
+    option.textContent = optionLabel;
+    option.selected = optionValue === value;
+    select.append(option);
+  });
+  select.addEventListener("change", () => { onChange(select.value); setDirty(); });
+  wrapper.append(select);
+  return wrapper;
+}
+
+function renderKnowledge() {
+  const container = document.querySelector('[data-repeater="knowledge"]');
+  container.replaceChildren();
+  knowledge.forEach((item, index) => {
+    const article = card(item.title || `Knowledge note ${index + 1}`);
+    article.classList.add("knowledge-card");
+
+    const sourceBadge = document.createElement("span");
+    sourceBadge.className = `source-badge ${item.sourceType === "web" ? "web" : "manual"}`;
+    sourceBadge.textContent = item.sourceType === "web" ? "WEB SOURCE" : "MANUAL NOTE";
+    article.querySelector("h3").after(sourceBadge);
+
+    const remove = removeButton(() => knowledge.splice(index, 1));
+    remove.addEventListener("click", renderKnowledge);
+    article.append(remove);
+
+    const grid = document.createElement("div");
+    grid.className = "field-grid";
+    grid.append(
+      field("Title", item.title, (value) => { item.title = value; article.querySelector("h3").textContent = value || `Knowledge note ${index + 1}`; }),
+      field("Category", item.category, (value) => { item.category = value; }),
+      field("Content", item.content, (value) => { item.content = value; }, { textarea: true, rows: 8, wide: true }),
+      field("Source URL", item.sourceUrl, (value) => { item.sourceUrl = value; item.sourceType = value ? "web" : "manual"; }, { type: "url", wide: true }),
+      field("Tags · comma separated", (item.tags || []).join(", "), (value) => { item.tags = value.split(",").map((tag) => tag.trim()).filter(Boolean); }),
+      selectField("Visibility", item.visibility || "assistant_only", [["assistant_only", "Assistant only"], ["public", "Public"], ["private", "Private — never retrieve"]], (value) => { item.visibility = value; })
+    );
+
+    const enabled = document.createElement("label");
+    enabled.className = "toggle-field wide";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = item.enabled !== false;
+    checkbox.addEventListener("change", () => { item.enabled = checkbox.checked; setDirty(); });
+    enabled.append(checkbox, document.createTextNode("Use this entry in chatbot retrieval"));
+    grid.append(enabled);
+    article.append(grid);
+    container.append(article);
+  });
 }
 
 function renderExperience() {
@@ -115,7 +172,7 @@ function renderEducation() {
   });
 }
 
-function renderRepeaters() { renderExperience(); renderProjects(); renderSkills(); renderEducation(); }
+function renderRepeaters() { renderExperience(); renderProjects(); renderSkills(); renderEducation(); renderKnowledge(); }
 
 function renderSectionOrder() {
   const container = document.querySelector("[data-section-order]");
@@ -143,6 +200,7 @@ function bindSimpleFields() {
 
 function mount(data) {
   portfolio = data.portfolio;
+  knowledge = data.knowledge || [];
   portfolio.site ||= { profileImage: "/profile.jpg", accent: "#9fdc72", layout: "compact", sectionOrder: ["about", "experience", "projects", "skills", "education", "contact"], hiddenSections: [] };
   skillsDraft = Object.entries(portfolio.skills || {}).map(([name, values]) => ({ name, values: [...values] }));
   document.querySelector("[data-rag-mode]").textContent = data.rag.mode === "embeddings" ? `Embeddings · ${data.rag.model}` : "Local ranked retrieval";
@@ -169,13 +227,23 @@ document.querySelectorAll("[data-add]").forEach((button) => button.addEventListe
   if (type === "projects") portfolio.projects.push({ name: "New project", dates: "", description: "", stack: [] });
   if (type === "education") portfolio.education.push({ institution: "New institution", program: "", location: "", dates: "", grade: "" });
   if (type === "skills") skillsDraft.push({ name: "New category", values: [] });
+  if (type === "knowledge") knowledge.push({ title: "New knowledge note", category: "General", content: "", sourceType: "manual", sourceUrl: "", tags: [], visibility: "assistant_only", enabled: true });
   setDirty(); renderRepeaters();
 }));
 
 async function save() {
   portfolio.skills = Object.fromEntries(skillsDraft.filter((item) => item.name.trim()).map((item) => [item.name.trim(), item.values]));
   saveButton.disabled = true; saveBottom.disabled = true; saveMessage.textContent = "Saving and rebuilding retrieval index…";
-  try { const data = await request("/api/admin/portfolio", { method: "PUT", headers: { "X-Admin-Request": "1" }, body: JSON.stringify({ portfolio }) }); portfolio = data.portfolio; document.querySelector("[data-rag-chunks]").textContent = data.rag.chunks; setDirty(false); saveMessage.textContent = "Saved"; }
+  try {
+    const portfolioData = await request("/api/admin/portfolio", { method: "PUT", headers: { "X-Admin-Request": "1" }, body: JSON.stringify({ portfolio }) });
+    portfolio = portfolioData.portfolio;
+    const knowledgeData = await request("/api/admin/knowledge", { method: "PUT", headers: { "X-Admin-Request": "1" }, body: JSON.stringify({ items: knowledge }) });
+    knowledge = knowledgeData.knowledge;
+    document.querySelector("[data-rag-chunks]").textContent = knowledgeData.rag.chunks;
+    renderKnowledge();
+    setDirty(false);
+    saveMessage.textContent = "Saved";
+  }
   catch (error) { setDirty(true, error.message); }
   finally { saveButton.disabled = false; saveBottom.disabled = false; }
 }
@@ -195,6 +263,36 @@ document.querySelector("[data-profile-file]").addEventListener("change", async (
   const file = event.target.files[0]; if (!file) return; const preview = document.querySelector("[data-profile-preview]");
   try { saveMessage.textContent = "Preparing portrait…"; saveBar.hidden = false; const dataUrl = await imageDataUrl(file); preview.src = dataUrl; const data = await request("/api/admin/profile", { method: "POST", headers: { "X-Admin-Request": "1" }, body: JSON.stringify({ dataUrl }) }); portfolio.site.profileImage = data.profileImage; preview.src = data.profileImage; setDirty(false); saveMessage.textContent = "Portrait updated and index rebuilt"; setTimeout(() => { if (!dirty) saveBar.hidden = true; }, 1800); }
   catch (error) { setDirty(true, error.message); }
+});
+
+document.querySelector("[data-web-import]").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const formData = new FormData(event.currentTarget);
+  const message = document.querySelector("[data-import-message]");
+  const submit = event.currentTarget.querySelector('button[type="submit"]');
+  submit.disabled = true;
+  message.textContent = "Reading and indexing the trusted page…";
+  try {
+    const data = await request("/api/admin/knowledge/import-url", {
+      method: "POST",
+      headers: { "X-Admin-Request": "1" },
+      body: JSON.stringify({
+        url: formData.get("url"),
+        title: formData.get("title"),
+        category: formData.get("category"),
+        tags: String(formData.get("tags") || "").split(",").map((tag) => tag.trim()).filter(Boolean)
+      })
+    });
+    knowledge = data.knowledge;
+    document.querySelector("[data-rag-chunks]").textContent = data.rag.chunks;
+    renderKnowledge();
+    event.currentTarget.reset();
+    message.textContent = `Imported “${data.item.title}” and rebuilt the chatbot index.`;
+  } catch (error) {
+    message.textContent = error.message;
+  } finally {
+    submit.disabled = false;
+  }
 });
 
 window.addEventListener("beforeunload", (event) => { if (dirty) { event.preventDefault(); event.returnValue = ""; } });

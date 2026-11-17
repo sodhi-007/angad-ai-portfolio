@@ -5,12 +5,12 @@
   "type": "module",
   "description": "A polished AI engineer portfolio with a biography-grounded chatbot.",
   "engines": {
-    "node": ">=20"
+    "node": ">=22.13"
   },
   "scripts": {
     "start": "node server.mjs",
     "dev": "node --watch server.mjs",
-    "check": "node --check server.mjs && node --check public/app.js && node --check lib/chat.mjs",
+    "check": "node --check server.mjs && node --check public/app.js && node --check public/admin.js && node --check lib/chat.mjs && node --check lib/rag.mjs && node --check lib/knowledge-store.mjs",
     "test": "node --test"
   }
 }

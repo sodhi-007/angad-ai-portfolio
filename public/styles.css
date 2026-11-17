@@ -91,6 +91,8 @@ html[data-layout="standard"] .section + .section { margin-top: 0; }
 .project-content h3 { margin: 12px 0 9px; font: 600 22px/1.2 var(--serif); }
 .project-content p { margin: 0 0 13px; color: var(--muted); font-size: 15px; line-height: 1.55; }
 .project-content small { color: var(--accent-2); font: 600 10px/1.45 var(--mono); text-transform: uppercase; letter-spacing: .04em; }
+.project-link { display: block; width: fit-content; margin-top: 12px; font-size: 14px; text-decoration: underline; text-underline-offset: 4px; }
+.project-link:hover { color: var(--accent); }
 .visual-chain { grid-template-columns: repeat(3, 42px); gap: 18px; }
 .visual-chain i { position: relative; width: 42px; height: 42px; border: 1px solid rgba(159,220,114,.7); transform: rotate(45deg); }
 .visual-chain i::after { content: ""; position: absolute; width: 20px; height: 1px; right: -28px; top: 20px; background: rgba(255,255,255,.3); }

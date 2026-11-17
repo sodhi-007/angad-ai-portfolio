@@ -107,7 +107,7 @@ function renderKnowledge() {
     }
     grid.append(
       field("Tags · comma separated", (item.tags || []).join(", "), (value) => { item.tags = value.split(",").map((tag) => tag.trim()).filter(Boolean); }),
-      selectField("Visibility", item.visibility || "assistant_only", [["assistant_only", "Assistant only"], ["public", "Public"], ["private", "Private — never retrieve"]], (value) => { item.visibility = value; })
+      selectField("Visibility", item.visibility || "assistant_only", [["assistant_only", "Assistant only"], ["public", "Public"], ["private", "Private (excluded from retrieval)"]], (value) => { item.visibility = value; })
     );
 
     const enabled = document.createElement("label");
@@ -151,6 +151,7 @@ function renderProjects() {
     grid.append(field("Project name", item.name, (value) => { item.name = value; article.querySelector("h3").textContent = value || `Project ${index + 1}`; }),
       field("Dates", item.dates, (value) => { item.dates = value; }),
       field("Description", item.description, (value) => { item.description = value; }, { textarea: true, rows: 4, wide: true }),
+      field("Website link (optional)", item.url, (value) => { item.url = value.trim(); }, { wide: true }),
       field("Technologies · comma separated", (item.stack || []).join(", "), (value) => { item.stack = value.split(",").map((part) => part.trim()).filter(Boolean); }, { wide: true }));
     article.append(grid); container.append(article);
   });

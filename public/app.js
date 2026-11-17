@@ -25,7 +25,7 @@ const french = {
   navEducation: "Formation",
   navContact: "Contact",
   aboutLabel: "À propos",
-  aboutTitle: "Je conçois des systèmes d’IA en production, fondés, évalués et prêts à évoluer.",
+  aboutTitle: "Je conçois et j’évalue des systèmes d’IA pour la production.",
   aboutP1: "Je suis ingénieur en IA appliquée, spécialisé en RAG de production, systèmes agentiques et évaluation des LLM. Chez CIMA+, j’ai livré un agent de connaissances bilingue utilisé par plus de 700 employés et construit la recherche sur plus de 10 000 pages de documents d’ingénierie dans Azure.",
   aboutP2: "Je termine une maîtrise en génie logiciel à l’Université Concordia et je recherche un poste à temps plein en IA/ML après l’obtention de mon diplôme en décembre 2026.",
   experienceLabel: "Expérience",
@@ -43,6 +43,7 @@ const french = {
   ibmRole: "Stagiaire",
   ibmDescription: "Création d’une plateforme de commerce électronique composée de cinq services avec Java, Spring Boot, Docker et Jenkins.",
   projectsLabel: "Projets",
+  projectWebsite: "Ouvrir le site",
   projectsTitle: "Projets sélectionnés de mon CV coop.",
   projectsDescription: "Projets universitaires en chaîne de blocs, ingénierie dorsale et logiciels quantitatifs. D’autres travaux sont disponibles sur <a href=\"https://github.com/sodhi-007\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub</a>.",
   project1Title: "Identification de produits contrefaits",
@@ -125,7 +126,7 @@ function setLanguage(language) {
   themeButton.setAttribute("aria-label", labels.theme);
   chatClose.setAttribute("aria-label", labels.chatClose);
   chat.setAttribute("aria-label", labels.chatLabel);
-  document.title = currentLanguage === "fr" ? "Angad Singh Sodhi — Ingénieur en IA appliquée" : "Angad Singh Sodhi — Applied AI Engineer";
+  document.title = currentLanguage === "fr" ? "Angad Singh Sodhi · Ingénieur en IA appliquée" : "Angad Singh Sodhi · Applied AI Engineer";
   updateModeLabel();
   localStorage.setItem("portfolio-language", currentLanguage);
 }
@@ -191,6 +192,20 @@ function projectVisual(index) {
   return visual;
 }
 
+function projectLink(value) {
+  if (typeof value !== "string" || !value.trim()) return null;
+  let url;
+  try { url = new URL(value, document.baseURI); } catch { return null; }
+  if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+
+  const label = "Open website";
+  const link = makeElement("a", "project-link", currentLanguage === "fr" ? french.projectWebsite : label);
+  link.href = url.href;
+  link.dataset.i18n = "projectWebsite";
+  textOriginals.set(link, label);
+  return link;
+}
+
 function renderPortfolio(data) {
   const site = data.site || {};
   const identity = data.identity || {};
@@ -224,7 +239,9 @@ function renderPortfolio(data) {
   (data.projects || []).forEach((item, index) => {
     const article = makeElement("article", "project-card reveal visible");
     const content = makeElement("div", "project-content");
-    content.append(makeElement("span", "", `${String(index + 1).padStart(2, "0")} · ${(item.stack || ["Project"])[0]}`), makeElement("h3", "", item.name || ""), makeElement("p", "", item.description || ""), makeElement("small", "", (item.stack || []).join(" · ")));
+    content.append(makeElement("span", "", `${String(index + 1).padStart(2, "0")} · ${item.stack?.[0] || "Project"}`), makeElement("h3", "", item.name || ""), makeElement("p", "", item.description || ""), makeElement("small", "", (item.stack || []).join(" · ")));
+    const link = projectLink(item.url);
+    if (link) content.append(link);
     article.append(projectVisual(index), content); projectGrid.append(article);
   });
 
@@ -280,6 +297,10 @@ chatToggle.addEventListener("click", () => setChat(chat.hidden));
 chatClose.addEventListener("click", () => setChat(false));
 document.addEventListener("keydown", (event) => { if (event.key === "Escape") { setChat(false); setMenu(false); } });
 
+function chatDisplayText(text) {
+  return String(text ?? "").replace(/[ \t]*\u2014[ \t]*/g, " – ");
+}
+
 function appendMessage(role, content, temporary = false, sources = []) {
   const wrapper = document.createElement("div");
   wrapper.className = `message ${role === "user" ? "user-message" : "assistant-message"}${temporary ? " typing" : ""}`;
@@ -289,7 +310,7 @@ function appendMessage(role, content, temporary = false, sources = []) {
   bubble.className = "message-bubble";
   const paragraph = document.createElement("p");
   if (temporary) paragraph.innerHTML = "<span>·</span><span>·</span><span>·</span>";
-  else paragraph.textContent = content;
+  else paragraph.textContent = role === "assistant" ? chatDisplayText(content) : content;
   bubble.append(paragraph);
   const cited = [...new Map((sources || []).filter((source) => /^https:\/\//i.test(source.sourceUrl || "") || source.documentName)
     .map((source) => [source.sourceUrl || source.documentName || source.title, source])).values()];
@@ -303,11 +324,11 @@ function appendMessage(role, content, temporary = false, sources = []) {
         link.href = source.sourceUrl;
         link.target = "_blank";
         link.rel = "noopener noreferrer";
-        link.textContent = source.title || new URL(source.sourceUrl).hostname;
+        link.textContent = chatDisplayText(source.title || new URL(source.sourceUrl).hostname);
         sourceList.append(link);
       } else {
         const documentSource = document.createElement("span");
-        documentSource.textContent = source.documentName;
+        documentSource.textContent = chatDisplayText(source.documentName);
         sourceList.append(documentSource);
       }
     });

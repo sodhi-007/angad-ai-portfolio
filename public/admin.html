@@ -7,7 +7,7 @@
     <title>Angad Portfolio Studio</title>
     <link rel="stylesheet" href="/admin.css?v=1" />
     <link rel="stylesheet" href="/admin-knowledge.css?v=1" />
-    <script src="/admin.js?v=1" defer></script>
+    <script src="/admin.js?v=2" defer></script>
   </head>
   <body>
     <header class="studio-header">
@@ -32,7 +32,7 @@
         <div class="studio-content">
           <section class="panel overview" id="overview">
             <div><span class="eyebrow">KNOWLEDGE SYSTEM</span><h2>Retrieval status</h2><p>Every save rebuilds the portfolio knowledge index used by the chatbot.</p></div>
-            <div class="stats"><article><span>Retriever</span><strong data-rag-mode>—</strong></article><article><span>Knowledge chunks</span><strong data-rag-chunks>—</strong></article><article><span>Database</span><strong data-db-status>Checking…</strong></article><article><span>Generation</span><strong data-ai-mode>Server controlled</strong></article></div>
+            <div class="stats"><article><span>Retriever</span><strong data-rag-mode>Checking…</strong></article><article><span>Knowledge chunks</span><strong data-rag-chunks>Checking…</strong></article><article><span>Database</span><strong data-db-status>Checking…</strong></article><article><span>Generation</span><strong data-ai-mode>Server controlled</strong></article></div>
           </section>
 
           <section class="panel" id="layout">
@@ -55,7 +55,7 @@
               <label>Title <input name="title" placeholder="Uses the filename by default" /></label>
               <label>Category <input name="category" value="Documents" /></label>
               <label>Tags <input name="tags" placeholder="resume, research, project" /></label>
-              <label>Visibility <select name="visibility"><option value="assistant_only">Assistant only</option><option value="public">Public</option><option value="private">Private — never retrieve</option></select></label>
+              <label>Visibility <select name="visibility"><option value="assistant_only">Assistant only</option><option value="public">Public</option><option value="private">Private (excluded from retrieval)</option></select></label>
               <button type="submit" class="primary">Upload &amp; index</button>
             </form>
             <p class="import-message" data-upload-message aria-live="polite"></p>

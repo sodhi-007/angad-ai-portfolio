@@ -95,6 +95,12 @@
         "Blockchain",
         "DApps"
       ]
+    },
+    {
+      "name": "Angad AI Portfolio",
+      "description": "I built this portfolio with a chatbot that answers questions about my work using curated sources, and an owner portal for updating the site and its knowledge library.",
+      "stack": ["RAG", "Node.js", "SQLite"],
+      "url": "./#about"
     }
   ],
   "education": [

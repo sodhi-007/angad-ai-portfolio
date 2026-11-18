@@ -32,11 +32,11 @@
       "location": "Montreal, QC",
       "dates": "January 2026 – May 2026",
       "highlights": [
-        "Shipped a bilingual English/French RAG agent for the internal sales network, used by 700+ employees and cutting manual document search time by 60%.",
-        "Built ingestion and retrieval over 10,000+ pages using MinerU OCR, OpenAI embeddings, ChromaDB, and Azure Container Apps Jobs, with sub-3-second retrieval on 95% of queries.",
-        "Fine-tuned a DistilBERT query router from Datadog logs, served it with FastAPI, and managed its MLOps lifecycle in ClearML.",
-        "Deployed Open WebUI with LiteLLM, Redis, and Azure Container Apps for 50+ concurrent users with zero downtime over four months.",
-        "Built an LLM-as-judge evaluation harness, prototyped AWS Strands agents, and created 10+ reusable Claude skills adopted team-wide."
+        "Angad shipped a bilingual English/French RAG agent for the internal sales network, used by 700+ employees and cutting manual document search time by 60%.",
+        "He built ingestion and retrieval over 10,000+ pages using MinerU OCR, OpenAI embeddings, ChromaDB, and Azure Container Apps Jobs, with sub-3-second retrieval on 95% of queries.",
+        "He fine-tuned a DistilBERT query router from Datadog logs, served it with FastAPI, and managed its MLOps lifecycle in ClearML.",
+        "He deployed Open WebUI with LiteLLM, Redis, and Azure Container Apps for 50+ concurrent users with zero downtime over four months.",
+        "He built an LLM-as-judge evaluation harness, prototyped AWS Strands agents, and created 10+ reusable Claude skills adopted team-wide."
       ]
     },
     {
@@ -45,9 +45,9 @@
       "location": "Mumbai, India",
       "dates": "March 2023 – December 2024",
       "highlights": [
-        "Led vulnerability management for 40,000+ servers and mitigated 10,000+ exploitable vulnerabilities.",
-        "Ran quarterly assessments across 100,000+ devices at 99%+ compliance.",
-        "Authored 30+ CIS-based security policies and reduced zero-day threat exposure by 70% using virtual patching."
+        "Angad led vulnerability management for 40,000+ servers and mitigated 10,000+ exploitable vulnerabilities.",
+        "He ran quarterly assessments across 100,000+ devices at 99%+ compliance.",
+        "He authored 30+ CIS-based security policies and reduced zero-day threat exposure by 70% using virtual patching."
       ]
     },
     {
@@ -56,9 +56,9 @@
       "location": "Remote",
       "dates": "June 2022 – August 2022",
       "highlights": [
-        "Built a five-service e-commerce platform in Java, Spring Boot, and Spring MVC.",
-        "Containerized services with Docker and automated CI/CD through Jenkins and Maven.",
-        "Connected REST services with Spring Cloud, MySQL, MongoDB, and Spring Security."
+        "Angad built a five-service e-commerce platform in Java, Spring Boot, and Spring MVC.",
+        "He containerized services with Docker and automated CI/CD through Jenkins and Maven.",
+        "He connected REST services with Spring Cloud, MySQL, MongoDB, and Spring Security."
       ]
     }
   ],

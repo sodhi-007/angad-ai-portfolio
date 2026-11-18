@@ -301,6 +301,16 @@ function chatDisplayText(text) {
   return String(text ?? "").replace(/[ \t]*\u2014[ \t]*/g, " – ");
 }
 
+function renderMarkdownLinks(text) {
+  const escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return escaped.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, label, url) => {
+    const trimmed = url.trim();
+    if (/^https?:\/\//i.test(trimmed)) return `<a href="${trimmed}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+    if (/^mailto:/i.test(trimmed)) return `<a href="${trimmed}">${label}</a>`;
+    return match;
+  });
+}
+
 function appendMessage(role, content, temporary = false, sources = []) {
   const wrapper = document.createElement("div");
   wrapper.className = `message ${role === "user" ? "user-message" : "assistant-message"}${temporary ? " typing" : ""}`;
@@ -310,7 +320,8 @@ function appendMessage(role, content, temporary = false, sources = []) {
   bubble.className = "message-bubble";
   const paragraph = document.createElement("p");
   if (temporary) paragraph.innerHTML = "<span>·</span><span>·</span><span>·</span>";
-  else paragraph.textContent = role === "assistant" ? chatDisplayText(content) : content;
+  else if (role === "assistant") paragraph.innerHTML = renderMarkdownLinks(chatDisplayText(content));
+  else paragraph.textContent = content;
   bubble.append(paragraph);
   const cited = [...new Map((sources || []).filter((source) => /^https:\/\//i.test(source.sourceUrl || "") || source.documentName)
     .map((source) => [source.sourceUrl || source.documentName || source.title, source])).values()];
@@ -349,14 +360,75 @@ async function sendMessage(question) {
   const typing = appendMessage("assistant", "", true);
   try {
     const response = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message, history, language: currentLanguage }) });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Unable to answer right now.");
-    typing.remove();
-    appendMessage("assistant", data.answer, false, data.sources || []);
-    history = [...history, { role: "user", content: message }, { role: "assistant", content: data.answer }].slice(-8);
-    if (data.mode === "ai") chatMode = "ai";
-    else if (data.mode === "retrieval") chatMode = "local";
-    updateModeLabel();
+    const contentType = response.headers.get("content-type") || "";
+    if (contentType.includes("text/event-stream")) {
+      typing.remove();
+      const wrapper = appendMessage("assistant", "");
+      const paragraph = wrapper.querySelector(".message-bubble p");
+      let fullText = "";
+      let sources = [];
+      let mode = "ai";
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith("data: ")) continue;
+          try {
+            const parsed = JSON.parse(trimmed.slice(6));
+            if (parsed.error) {
+              throw new Error(parsed.error);
+            } else if (parsed.token) {
+              fullText += parsed.token;
+              paragraph.innerHTML = renderMarkdownLinks(chatDisplayText(fullText));
+              messages.scrollTop = messages.scrollHeight;
+            } else if (parsed.sources) {
+              sources = parsed.sources;
+              mode = parsed.mode || "ai";
+            }
+          } catch { /* skip malformed lines */ }
+        }
+      }
+      const cited = [...new Map((sources || []).filter((s) => /^https:\/\//i.test(s.sourceUrl || "") || s.documentName)
+        .map((s) => [s.sourceUrl || s.documentName || s.title, s])).values()];
+      if (cited.length) {
+        const sourceList = document.createElement("div");
+        sourceList.className = "message-sources";
+        sourceList.append(document.createTextNode("Sources: "));
+        cited.slice(0, 3).forEach((source) => {
+          if (/^https:\/\//i.test(source.sourceUrl || "")) {
+            const link = document.createElement("a");
+            link.href = source.sourceUrl;
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+            link.textContent = chatDisplayText(source.title || new URL(source.sourceUrl).hostname);
+            sourceList.append(link);
+          } else {
+            const span = document.createElement("span");
+            span.textContent = chatDisplayText(source.documentName);
+            sourceList.append(span);
+          }
+        });
+        wrapper.querySelector(".message-bubble").append(sourceList);
+      }
+      history = [...history, { role: "user", content: message }, { role: "assistant", content: fullText }].slice(-8);
+      chatMode = mode === "ai" ? "ai" : "local";
+      updateModeLabel();
+    } else {
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Unable to answer right now.");
+      typing.remove();
+      appendMessage("assistant", data.answer, false, data.sources || []);
+      history = [...history, { role: "user", content: message }, { role: "assistant", content: data.answer }].slice(-8);
+      chatMode = data.mode === "ai" ? "ai" : "local";
+      updateModeLabel();
+    }
   } catch (error) {
     typing.remove();
     appendMessage("assistant", error.message || interfaceText[currentLanguage].error);

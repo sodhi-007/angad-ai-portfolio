@@ -289,10 +289,12 @@ async function fileBase64(file) {
 
 document.querySelector("[data-document-upload]").addEventListener("submit", async (event) => {
   event.preventDefault();
-  const formData = new FormData(event.currentTarget);
+  // event.currentTarget is null once the handler awaits, so keep a reference to the form.
+  const form = event.currentTarget;
+  const formData = new FormData(form);
   const file = formData.get("document");
   const message = document.querySelector("[data-upload-message]");
-  const submit = event.currentTarget.querySelector('button[type="submit"]');
+  const submit = form.querySelector('button[type="submit"]');
   if (!(file instanceof File) || !file.size) return;
   if (file.size > 8_000_000) { message.textContent = "Documents must be smaller than 8 MB."; return; }
   submit.disabled = true;
@@ -314,8 +316,8 @@ document.querySelector("[data-document-upload]").addEventListener("submit", asyn
     knowledge = data.knowledge;
     document.querySelector("[data-rag-chunks]").textContent = data.rag.chunks;
     renderKnowledge();
-    event.currentTarget.reset();
-    event.currentTarget.elements.category.value = "Documents";
+    form.reset();
+    form.elements.category.value = "Documents";
     message.textContent = `Uploaded “${data.item.document.name}” and added ${data.item.title} to retrieval.`;
   } catch (error) {
     message.textContent = error.message;
@@ -326,9 +328,10 @@ document.querySelector("[data-document-upload]").addEventListener("submit", asyn
 
 document.querySelector("[data-web-import]").addEventListener("submit", async (event) => {
   event.preventDefault();
-  const formData = new FormData(event.currentTarget);
+  const form = event.currentTarget;
+  const formData = new FormData(form);
   const message = document.querySelector("[data-import-message]");
-  const submit = event.currentTarget.querySelector('button[type="submit"]');
+  const submit = form.querySelector('button[type="submit"]');
   submit.disabled = true;
   message.textContent = "Reading and indexing the trusted page…";
   try {
@@ -345,7 +348,7 @@ document.querySelector("[data-web-import]").addEventListener("submit", async (ev
     knowledge = data.knowledge;
     document.querySelector("[data-rag-chunks]").textContent = data.rag.chunks;
     renderKnowledge();
-    event.currentTarget.reset();
+    form.reset();
     message.textContent = `Imported “${data.item.title}” and rebuilt the chatbot index.`;
   } catch (error) {
     message.textContent = error.message;

@@ -9,24 +9,24 @@ import { KnowledgeStore, knowledgeChunks } from "../lib/knowledge-store.mjs";
 test("stores editable knowledge and seeds the official CIMA+ source", async () => {
   const directory = await mkdtemp(join(tmpdir(), "portfolio-knowledge-"));
   try {
-    const store = new KnowledgeStore(join(directory, "knowledge.sqlite"));
-    const seeded = store.list();
+    const store = await KnowledgeStore.open({ path: join(directory, "knowledge.sqlite") });
+    const seeded = await store.list();
     assert.equal(seeded.length, 1);
     assert.equal(seeded[0].title, "What is CIMA+?");
     assert.equal(seeded[0].sourceUrl, "https://www.cima.ca/en/about-us/");
 
-    const note = store.upsert({
+    const note = await store.upsert({
       title: "Preferred AI work",
       category: "Career",
       content: "Angad focuses on production RAG systems and applied AI engineering.",
       tags: ["AI", "RAG"],
       visibility: "assistant_only"
     });
-    assert.equal(store.get(note.id).tags.length, 2);
-    assert.equal(store.list().length, 2);
-    assert.equal(store.health(), true);
+    assert.equal((await store.get(note.id)).tags.length, 2);
+    assert.equal((await store.list()).length, 2);
+    assert.equal(await store.health(), true);
 
-    const document = store.addDocument({
+    const document = await store.addDocument({
       originalName: "career-notes.txt",
       mimeType: "text/plain",
       buffer: Buffer.from("Angad builds reliable retrieval systems."),
@@ -40,8 +40,40 @@ test("stores editable knowledge and seeds the official CIMA+ source", async () =
     assert.equal(document.document.name, "career-notes.txt");
     assert.equal(document.document.size, 40);
 
-    const saved = store.replaceAll(store.list());
+    const saved = await store.replaceAll(await store.list());
     assert.ok(saved.some((item) => item.document?.name === "career-notes.txt"));
+    assert.equal(await store.remove(note.id), true);
+    assert.equal(await store.get(note.id), null);
+    store.close();
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("knowledge, settings, and assets survive reopening the database", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "portfolio-knowledge-reopen-"));
+  const path = join(directory, "knowledge.sqlite");
+  try {
+    const first = await KnowledgeStore.open({ path });
+    await first.addDocument({
+      originalName: "resume.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF fake"),
+      text: "Angad shipped a bilingual RAG agent.", title: "Résumé", category: "Documents"
+    });
+    await first.setSetting("portfolio", { identity: { name: "Angad Singh Sodhi" } });
+    await first.putAsset("profile-photo", "image/jpeg", Buffer.from([0xff, 0xd8, 0xff, 0xd9]));
+    first.close();
+
+    const second = await KnowledgeStore.open({ path });
+    const items = await second.list();
+    assert.ok(items.some((item) => item.document?.name === "resume.pdf"));
+    assert.equal(items.filter((item) => item.title === "What is CIMA+?").length, 1, "seed must not duplicate");
+    assert.equal((await second.getSetting("portfolio")).identity.name, "Angad Singh Sodhi");
+    const photo = await second.getAsset("profile-photo");
+    assert.equal(photo.mimeType, "image/jpeg");
+    assert.deepEqual([...photo.data], [0xff, 0xd8, 0xff, 0xd9]);
+    assert.equal(await second.getSetting("missing"), null);
+    assert.equal(await second.getAsset("missing"), null);
+    second.close();
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
@@ -73,11 +105,11 @@ test("migrates an existing knowledge database to document support", async () => 
       INSERT INTO knowledge_sources VALUES ('legacy', 'Legacy note', 'General', 'Existing knowledge remains available.', 'manual', NULL, '[]', 'assistant_only', 1, 'hash', '2026-01-01', '2026-01-01', NULL);
     `);
     legacy.close();
-    const store = new KnowledgeStore(path);
-    assert.equal(store.get("legacy").content, "Existing knowledge remains available.");
-    const columns = store.database.prepare("PRAGMA table_info(knowledge_sources)").all().map((column) => column.name);
+    const store = await KnowledgeStore.open({ path });
+    assert.equal((await store.get("legacy")).content, "Existing knowledge remains available.");
+    const columns = (await store.client.execute("PRAGMA table_info(knowledge_sources)")).rows.map((column) => column.name);
     assert.ok(columns.includes("document_id"));
-    store.database.close();
+    store.close();
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

@@ -65,7 +65,7 @@ html[data-layout="standard"] .section + .section { margin-top: 0; }
 .portrait-photo[hidden] { display: none; }
 .portrait-mark.has-photo::before, .portrait-mark.has-photo::after, .portrait-mark.has-photo span { display: none; }
 .about-copy { max-width: 800px; text-align: center; }
-.about-copy h2 { margin: 0 auto 22px; max-width: 760px; font: 600 clamp(27px, 4.2vw, 39px)/1.2 var(--serif); }
+.about-copy h1 { margin: 0 auto 22px; max-width: 760px; font: 600 clamp(27px, 4.2vw, 39px)/1.2 var(--serif); }
 .about-copy p { margin: 17px auto; max-width: 760px; font-size: 18px; line-height: 1.65; }
 
 .experience-list { display: grid; grid-template-columns: repeat(2,1fr); gap: 18px; margin-top: 26px; }
@@ -157,6 +157,7 @@ footer span:last-child { display: none; }
 .typing p span { display: inline-block; animation: type 1s infinite; }.typing p span:nth-child(2){animation-delay:.15s}.typing p span:nth-child(3){animation-delay:.3s}
 @keyframes type { 50% { transform: translateY(-2px); color: var(--accent); } }
 .suggestions { padding: 0 14px 11px; display: flex; gap: 6px; overflow-x: auto; }
+.suggestions[hidden], .suggestions button[hidden] { display: none; }
 .suggestions button { flex: 0 0 auto; padding: 7px 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); background: transparent; font-size: 10px; cursor: pointer; }
 .chat-form { padding: 11px; display: flex; gap: 7px; border-top: 1px solid var(--line); }
 .chat-form input { flex: 1; min-width: 0; height: 46px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; outline: 0; color: var(--text); background: var(--bg); font-size: 13px; }
@@ -176,7 +177,7 @@ footer span:last-child { display: none; }
   .section-label { font-size: 27px; }
   .section-intro { font-size: 20px; }
   .portrait-mark { width: 130px; height: 130px; }
-  .about-copy h2 { font-size: 27px; }
+  .about-copy h1 { font-size: 27px; }
   .about-copy p { font-size: 16px; }
   .experience-list, .project-grid { grid-template-columns: 1fr; gap: 18px; }
   .experience-card:first-child { grid-column: auto; }

@@ -48,9 +48,14 @@ Use `/admin.html` to:
 - mark knowledge as public, assistant-only, private, enabled, or disabled;
 - save changes and rebuild the chatbot retrieval index.
 
-Portfolio changes are written to `data/portfolio.json`. Extra chatbot knowledge is stored in the local SQLite database at `data/knowledge.sqlite`; set `KNOWLEDGE_DB_FILE` to place it elsewhere. The profile upload is saved in `public/`.
+Storage has two modes, chosen by environment variables:
 
-The SQLite schema uses two connected tables: `knowledge_sources` stores searchable content, visibility, tags, and retrieval state; `knowledge_documents` stores the original private file, filename, MIME type, size, page count, and content hash. A document source links the two records with a foreign key. Uploading a file extracts text on the server, redacts phone-number patterns from searchable text, creates both records in one database, and immediately rebuilds retrieval. Duplicate document bytes are detected by SHA-256 hash. Uploaded files are limited to 8 MB. Scanned PDFs need OCR before upload because the current extractor indexes selectable text.
+- **Durable (Turso), for hosting.** With `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` set, the knowledge library, uploaded documents, portal edits, and the profile photo are all stored in a hosted Turso (libSQL) database, so they survive restarts and redeploys. On first start the database is filled from `data/portfolio.json`; after that **the database is the source of truth** for portfolio content, and later edits to `data/portfolio.json` in git are ignored. Make content changes in the portal.
+- **Local file, for development.** Without those variables, knowledge, documents, and the photo go to the SQLite file at `data/knowledge.sqlite` (set `KNOWLEDGE_DB_FILE` to move it), and portal edits are written to `data/portfolio.json`.
+
+The profile photo is served from `/profile-photo`, falling back to the committed `public/profile-headshot.jpg` until one is uploaded.
+
+The schema uses two connected knowledge tables, plus `site_settings` (portfolio content) and `site_assets` (profile photo): `knowledge_sources` stores searchable content, visibility, tags, and retrieval state; `knowledge_documents` stores the original private file, filename, MIME type, size, page count, and content hash. A document source links the two records with a foreign key. Uploading a file extracts text on the server, redacts phone-number patterns from searchable text, creates both records in one database, and immediately rebuilds retrieval. Duplicate document bytes are detected by SHA-256 hash. Uploaded files are limited to 8 MB. Scanned PDFs need OCR before upload because the current extractor indexes selectable text.
 
 The library starts with an assistant-only entry describing CIMA+ from the company's official About page. Web access is curated rather than unrestricted: the owner chooses each page to import, the server accepts public HTTPS HTML/text pages only, blocks local/private network addresses, extracts readable text, records the source URL, and rebuilds retrieval. This keeps answers grounded and prevents the assistant from treating arbitrary search results as facts.
 
@@ -64,7 +69,7 @@ The same module handles greetings (including "yo" and "wassup"), introductions, 
 
 Without an API key, `lib/rag.mjs` composes company overviews from retrieved company descriptions, one role summary, and up to two distinct contributions. Add company descriptions as enabled knowledge entries in the owner portal, for example a sourced sentence beginning "Company name is ...". Missing descriptions are acknowledged, not fabricated. Specific questions keep their focused retrieval path. Local mode preserves source language for extracted facts; fluent paraphrasing, translation, and contextual follow-ups require the AI mode.
 
-After changing the prompt or response code, commit the changes to the deployed GitHub branch and deploy that commit on Render. Preserve owner-portal data and uploaded documents before redeploying if the service uses ephemeral storage.
+After changing the prompt or response code, commit the changes to the deployed GitHub branch and deploy that commit on Render. With Turso configured, owner-portal data and uploaded documents are unaffected by redeploys.
 
 The chatbot already works without a key. To enable live, grounded answers, set environment variables only on the server:
 
@@ -80,7 +85,7 @@ Do not add the key or admin password to browser JavaScript, HTML, a public repos
 
 ## Deploy
 
-Because the chatbot uses `/api/chat` and SQLite, deploy this as a small Node service rather than as a static-only GitHub Pages site. A deployment must preserve both `data/portfolio.json` and `data/knowledge.sqlite` if you want owner-portal edits and uploaded documents to survive restarts.
+Because the chatbot uses `/api/chat` and a database, deploy this as a small Node service rather than as a static-only GitHub Pages site. Hosts with ephemeral disks (including Render's free tier) wipe local files on every restart, so set `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` for owner-portal edits, uploaded documents, and the profile photo to persist.
 
 ### Azure Container Apps
 
@@ -88,17 +93,17 @@ Build a container from the included `Dockerfile`, deploy it to Azure Container A
 
 ### Render, Railway, Fly.io, or another Node host
 
-- Build command: none required
+- Build command: `npm ci`
 - Start command: `npm start`
 - Runtime: Node 22.13+
+- Required secrets for durable storage: `TURSO_DATABASE_URL` (`libsql://…`) and `TURSO_AUTH_TOKEN`
 - Optional secret: `OPENAI_API_KEY`
 - Required secret for remote editing: `ADMIN_PASSWORD`
 - Optional variable: `OPENAI_MODEL=gpt-6-luna`
 - Optional variable: `OPENAI_EMBEDDING_MODEL=text-embedding-3-small`
-- Optional variable: `KNOWLEDGE_DB_FILE=/persistent/path/knowledge.sqlite`
-- Health endpoint: `/api/health`
+- Health endpoint: `/api/health` (reports `storage.driver` and `storage.durable`)
 
-For a free-tier target, the next deployment step is Cloudflare Workers plus D1 and R2. D1 holds structured knowledge and extracted text; R2 holds original uploaded files. The current local adapter keeps both in SQLite for a simple self-contained setup, so deployment needs a storage-adapter migration rather than a change to the portal workflow. Static hosting alone is insufficient for the editor and chatbot. Never put the API key in client-side code.
+Render's free tier also sleeps after 15 idle minutes, and the first visit afterwards takes about a minute. An external uptime monitor requesting `/api/health` every 10 minutes keeps it awake; one always-on free service fits within the monthly free instance hours. Static hosting alone is insufficient for the editor and chatbot. Never put the API key in client-side code.
 
 ## Security notes
 

@@ -21,11 +21,11 @@ const noisyDocument = {
 async function companyIndex({ includeCompanySource = true } = {}) {
   const entries = [noisyDocument];
   if (includeCompanySource) {
-    const store = new KnowledgeStore(":memory:");
+    const store = await KnowledgeStore.open({ url: ":memory:" });
     try {
-      entries.push(...store.list());
+      entries.push(...await store.list());
     } finally {
-      store.database.close();
+      store.close();
     }
   }
   return buildRagIndex(portfolio, { extraChunks: knowledgeChunks(entries) });

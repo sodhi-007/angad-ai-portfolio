@@ -5,6 +5,7 @@
   "type": "module",
   "description": "A polished AI engineer portfolio with a biography-grounded chatbot.",
   "dependencies": {
+    "@libsql/client": "^0.18.0",
     "mammoth": "^1.13.0",
     "pdf-parse": "^2.4.5"
   },

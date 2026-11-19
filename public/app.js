@@ -46,18 +46,6 @@ const french = {
   projectWebsite: "Ouvrir le site",
   projectsTitle: "Projets sélectionnés de mon CV coop.",
   projectsDescription: "Projets universitaires en chaîne de blocs, ingénierie dorsale et logiciels quantitatifs. D’autres travaux sont disponibles sur <a href=\"https://github.com/sodhi-007\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub</a>.",
-  project1Title: "Identification de produits contrefaits",
-  project1Description: "Portails de produits et d’utilisateurs appuyés par des contrats intelligents pour détecter les contrefaçons.",
-  project1Tags: "Développement full-stack · Contrats intelligents · Sécurité",
-  project2Title: "Portail d’information universitaire",
-  project2Description: "Système d’information déployé qui tient les étudiants au courant des activités universitaires.",
-  project2Tags: "Dorsal · Base de données · Déploiement",
-  project3Title: "Gestionnaire quantitatif de portefeuille",
-  project3Description: "Gestionnaire de portefeuille dans Jupyter utilisant une stratégie quantitative à momentum élevé.",
-  project3Tags: "Modélisation financière · Analyse de données",
-  project4Title: "Financement participatif sur chaîne de blocs",
-  project4Description: "Plateforme décentralisée de financement participatif avec contrats intelligents Solidity déployés.",
-  project4Tags: "DApps · Chaîne de blocs · Contrats intelligents",
   skillsLabel: "Compétences",
   skillsTitle: "Une pile compacte pour l’IA en production.",
   skillCloud: "Infonuagique et MLOps",
@@ -80,6 +68,75 @@ const french = {
   chatPlaceholder: "Question sur Angad…",
   chatSend: "Envoyer la question"
 };
+
+// French versions of the text that renderPortfolio() pulls from data/portfolio.json.
+// Keys must match the English text in the JSON exactly; anything missing falls back to English.
+const frenchContent = new Map([
+  ["Artificial Intelligence Intern", "Stagiaire en intelligence artificielle"],
+  ["Deputy Manager, Cybersecurity", "Gestionnaire adjoint, cybersécurité"],
+  ["Intern", "Stagiaire"],
+  ["Angad shipped a bilingual English/French RAG agent for the internal sales network, used by 700+ employees and cutting manual document search time by 60%.", "Angad a livré un agent RAG bilingue anglais-français pour le réseau de vente interne, utilisé par plus de 700 employés, réduisant de 60 % le temps de recherche manuelle de documents."],
+  ["He built ingestion and retrieval over 10,000+ pages using MinerU OCR, OpenAI embeddings, ChromaDB, and Azure Container Apps Jobs, with sub-3-second retrieval on 95% of queries.", "Il a construit l’ingestion et la recherche sur plus de 10 000 pages avec MinerU OCR, les embeddings OpenAI, ChromaDB et Azure Container Apps Jobs, avec une recherche en moins de 3 secondes pour 95 % des requêtes."],
+  ["He fine-tuned a DistilBERT query router from Datadog logs, served it with FastAPI, and managed its MLOps lifecycle in ClearML.", "Il a affiné un routeur de requêtes DistilBERT à partir des journaux Datadog, l’a servi avec FastAPI et a géré son cycle de vie MLOps dans ClearML."],
+  ["He deployed Open WebUI with LiteLLM, Redis, and Azure Container Apps for 50+ concurrent users with zero downtime over four months.", "Il a déployé Open WebUI avec LiteLLM, Redis et Azure Container Apps pour plus de 50 utilisateurs simultanés, sans aucune interruption pendant quatre mois."],
+  ["He built an LLM-as-judge evaluation harness, prototyped AWS Strands agents, and created 10+ reusable Claude skills adopted team-wide.", "Il a conçu un banc d’évaluation LLM-as-judge, prototypé des agents AWS Strands et créé plus de 10 compétences Claude réutilisables adoptées par toute l’équipe."],
+  ["Angad led vulnerability management for 40,000+ servers and mitigated 10,000+ exploitable vulnerabilities.", "Angad a dirigé la gestion des vulnérabilités de plus de 40 000 serveurs et atténué plus de 10 000 vulnérabilités exploitables."],
+  ["He ran quarterly assessments across 100,000+ devices at 99%+ compliance.", "Il a mené des évaluations trimestrielles sur plus de 100 000 appareils avec une conformité supérieure à 99 %."],
+  ["He authored 30+ CIS-based security policies and reduced zero-day threat exposure by 70% using virtual patching.", "Il a rédigé plus de 30 politiques de sécurité fondées sur CIS et réduit de 70 % l’exposition aux menaces zero-day grâce aux correctifs virtuels."],
+  ["Angad built a five-service e-commerce platform in Java, Spring Boot, and Spring MVC.", "Angad a créé une plateforme de commerce électronique de cinq services avec Java, Spring Boot et Spring MVC."],
+  ["He containerized services with Docker and automated CI/CD through Jenkins and Maven.", "Il a conteneurisé les services avec Docker et automatisé l’intégration et la livraison continues avec Jenkins et Maven."],
+  ["He connected REST services with Spring Cloud, MySQL, MongoDB, and Spring Security.", "Il a relié les services REST avec Spring Cloud, MySQL, MongoDB et Spring Security."],
+  ["University Information Hub", "Portail d’information universitaire"],
+  ["Developed and deployed a Django information system that helps university students stay current with activities.", "Conception et déploiement d’un système d’information Django qui tient les étudiants au courant des activités universitaires."],
+  ["Quantitative Portfolio Manager", "Gestionnaire quantitatif de portefeuille"],
+  ["Designed a Python portfolio manager based on a high quantitative momentum investing strategy.", "Conception d’un gestionnaire de portefeuille en Python fondé sur une stratégie d’investissement quantitative à momentum élevé."],
+  ["Blockchain Crowdfunding", "Financement participatif sur chaîne de blocs"],
+  ["Built a decentralized crowdfunding platform and deployed Solidity-based smart contracts.", "Création d’une plateforme décentralisée de financement participatif et déploiement de contrats intelligents Solidity."],
+  ["Angad AI Portfolio", "Portfolio Angad AI"],
+  ["I built this portfolio with a chatbot that answers questions about my work using curated sources, and an owner portal for updating the site and its knowledge library.", "J’ai construit ce portfolio avec un robot conversationnel qui répond aux questions sur mon travail à partir de sources choisies, ainsi qu’un portail pour mettre à jour le site et sa bibliothèque de connaissances."],
+  ["Project", "Projet"],
+  ["Backend engineering", "Ingénierie dorsale"],
+  ["Database management", "Gestion de bases de données"],
+  ["Deployment", "Déploiement"],
+  ["Financial modelling", "Modélisation financière"],
+  ["Data analysis", "Analyse de données"],
+  ["Smart contracts", "Contrats intelligents"],
+  ["Blockchain", "Chaîne de blocs"],
+  ["AI and LLM", "IA et LLM"],
+  ["MLOps and cloud", "MLOps et infonuagique"],
+  ["Programming", "Programmation"],
+  ["Security", "Sécurité"],
+  ["Agentic and multi-agent systems", "Systèmes agentiques et multi-agents"],
+  ["DistilBERT fine-tuning", "Affinage de DistilBERT"],
+  ["OpenAI embeddings", "Embeddings OpenAI"],
+  ["REST APIs", "API REST"],
+  ["CIS benchmarks", "Référentiels CIS"],
+  ["Concordia University", "Université Concordia"],
+  ["Master of Engineering, Software Engineering (Co-op)", "Maîtrise en ingénierie, génie logiciel (coop)"],
+  ["Bachelor of Technology, Computer Science", "Baccalauréat en technologie, informatique"],
+  ["CGPA 3.47 / 4.30", "Moyenne 3,47 / 4,30"],
+  ["CGPA 7.87 / 10", "Moyenne 7,87 / 10"],
+  ["Certified", "Certifié"]
+]);
+
+const frenchMonths = { January: "janvier", February: "février", March: "mars", April: "avril", May: "mai", June: "juin", July: "juillet", August: "août", September: "septembre", October: "octobre", November: "novembre", December: "décembre" };
+
+function toFrench(text) {
+  const value = String(text ?? "");
+  if (frenchContent.has(value)) return frenchContent.get(value);
+  return value
+    .replace(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\b/g, (month) => frenchMonths[month])
+    .replace(/\(expected\)/g, "(prévu)");
+}
+
+// Renders English text now and registers its French version for setLanguage().
+const bilingualText = new WeakMap();
+function setBilingual(element, english, frenchText = toFrench(english)) {
+  bilingualText.set(element, { en: english, fr: frenchText });
+  element.dataset.i18nPair = "";
+  element.textContent = currentLanguage === "fr" ? frenchText : english;
+  return element;
+}
 
 const interfaceText = {
   en: { menuOpen: "Open navigation", menuClose: "Close navigation", theme: "Toggle light and dark theme", chatClose: "Close chatbot", chatLabel: "Ask questions about Angad's résumé", checking: "Checking retrieval…", aiMode: "Live AI · retrieved evidence", localMode: "Local ranked retrieval", error: "Unable to answer right now." },
@@ -118,6 +175,10 @@ function setLanguage(language) {
   document.querySelectorAll("[data-i18n-aria-label]").forEach((element) => {
     const key = element.dataset.i18nAriaLabel;
     element.setAttribute("aria-label", currentLanguage === "fr" && french[key] ? french[key] : ariaOriginals.get(element));
+  });
+  document.querySelectorAll("[data-i18n-pair]").forEach((element) => {
+    const pair = bilingualText.get(element);
+    if (pair) element.textContent = currentLanguage === "fr" ? pair.fr : pair.en;
   });
   document.querySelectorAll("[data-language]").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.language === currentLanguage)));
   const labels = interfaceText[currentLanguage];
@@ -181,14 +242,27 @@ function makeElement(tag, className, text) {
   return element;
 }
 
-function projectVisual(index) {
-  const variants = ["visual-chain", "visual-hub", "visual-chart", "visual-crowd"];
-  const visual = makeElement("div", `project-visual ${variants[index % variants.length]}`);
+// Picks the card graphic from the project's main technology so it always matches the project.
+function projectVisual(item) {
+  const tech = String(item.stack?.[0] || "").toLowerCase();
+  const visual = makeElement("div", "project-visual");
   visual.setAttribute("aria-hidden", "true");
-  if (index % 4 === 0) for (let count = 0; count < 3; count += 1) visual.append(makeElement("i"));
-  if (index % 4 === 1) { visual.append(makeElement("b", "", "django"), makeElement("i")); }
-  if (index % 4 === 2) for (let count = 0; count < 5; count += 1) visual.append(makeElement("i"));
-  if (index % 4 === 3) visual.append(makeElement("b", "", "◎"), makeElement("span", "", "BUILD"));
+  if (tech === "django") {
+    visual.classList.add("visual-hub");
+    visual.append(makeElement("b", "", "django"), makeElement("i"));
+  } else if (["python", "jupyter", "data analysis"].includes(tech)) {
+    visual.classList.add("visual-chart");
+    for (let count = 0; count < 5; count += 1) visual.append(makeElement("i"));
+  } else if (["solidity", "blockchain", "smart contracts"].includes(tech)) {
+    visual.classList.add("visual-crowd");
+    visual.append(makeElement("b", "", "◎"), makeElement("span", "", "ETH"));
+  } else if (["rag", "llm", "ai"].includes(tech)) {
+    visual.classList.add("visual-hub");
+    visual.append(makeElement("b", "", "Angad AI"), makeElement("i"));
+  } else {
+    visual.classList.add("visual-chain");
+    for (let count = 0; count < 3; count += 1) visual.append(makeElement("i"));
+  }
   return visual;
 }
 
@@ -225,12 +299,12 @@ function renderPortfolio(data) {
   (data.experience || []).forEach((item) => {
     const article = makeElement("article", "experience-card reveal visible");
     const side = makeElement("div", "experience-side");
-    side.append(makeElement("span", "", item.dates || ""), makeElement("h3", "", item.organization || ""), makeElement("p", "", item.role || ""));
+    side.append(setBilingual(makeElement("span"), item.dates || ""), makeElement("h3", "", item.organization || ""), setBilingual(makeElement("p"), item.role || ""));
     const body = makeElement("div", "experience-body");
     const highlights = item.highlights || [];
-    if (highlights[0]) body.append(makeElement("p", "", highlights[0]));
+    if (highlights[0]) body.append(setBilingual(makeElement("p"), highlights[0]));
     const list = makeElement("ul");
-    highlights.slice(1).forEach((highlight) => list.append(makeElement("li", "", highlight)));
+    highlights.slice(1).forEach((highlight) => list.append(setBilingual(makeElement("li"), highlight)));
     body.append(list); article.append(side, body); experienceList.append(article);
   });
 
@@ -239,27 +313,44 @@ function renderPortfolio(data) {
   (data.projects || []).forEach((item, index) => {
     const article = makeElement("article", "project-card reveal visible");
     const content = makeElement("div", "project-content");
-    content.append(makeElement("span", "", `${String(index + 1).padStart(2, "0")} · ${item.stack?.[0] || "Project"}`), makeElement("h3", "", item.name || ""), makeElement("p", "", item.description || ""), makeElement("small", "", (item.stack || []).join(" · ")));
+    const number = String(index + 1).padStart(2, "0");
+    const tech = item.stack?.[0] || "Project";
+    const stack = item.stack || [];
+    content.append(
+      setBilingual(makeElement("span"), `${number} · ${tech}`, `${number} · ${toFrench(tech)}`),
+      setBilingual(makeElement("h3"), item.name || ""),
+      setBilingual(makeElement("p"), item.description || ""),
+      setBilingual(makeElement("small"), stack.join(" · "), stack.map(toFrench).join(" · "))
+    );
     const link = projectLink(item.url);
     if (link) content.append(link);
-    article.append(projectVisual(index), content); projectGrid.append(article);
+    article.append(projectVisual(item), content); projectGrid.append(article);
   });
 
   const skillLines = document.querySelector(".skill-lines");
   skillLines.replaceChildren();
-  Object.entries(data.skills || {}).forEach(([category, values]) => { const row = makeElement("p"); row.append(makeElement("b", "", category), makeElement("span", "", values.join(" · "))); skillLines.append(row); });
+  Object.entries(data.skills || {}).forEach(([category, values]) => {
+    const row = makeElement("p");
+    row.append(setBilingual(makeElement("b"), category), setBilingual(makeElement("span"), values.join(" · "), values.map(toFrench).join(" · ")));
+    skillLines.append(row);
+  });
 
   const educationList = document.querySelector(".education-list");
   educationList.replaceChildren();
   (data.education || []).forEach((item) => {
     const article = makeElement("article"); const details = makeElement("div");
-    details.append(makeElement("h3", "", item.institution || ""), makeElement("p", "", `${item.program || ""}${item.grade ? ` · ${item.grade}` : ""}`));
-    article.append(makeElement("span", "", item.dates || ""), details); educationList.append(article);
+    const program = item.program || "";
+    const grade = item.grade || "";
+    details.append(
+      setBilingual(makeElement("h3"), item.institution || ""),
+      setBilingual(makeElement("p"), `${program}${grade ? ` · ${grade}` : ""}`, `${toFrench(program)}${grade ? ` · ${toFrench(grade)}` : ""}`)
+    );
+    article.append(setBilingual(makeElement("span"), item.dates || ""), details); educationList.append(article);
   });
   if ((data.certifications || []).length) {
     const article = makeElement("article"); const details = makeElement("div");
-    details.append(makeElement("h3", "", "Certifications"), makeElement("p", "", data.certifications.join(" · ")));
-    article.append(makeElement("span", "", "Certified"), details); educationList.append(article);
+    details.append(makeElement("h3", "", "Certifications"), setBilingual(makeElement("p"), data.certifications.join(" · "), data.certifications.map(toFrench).join(" · ")));
+    article.append(setBilingual(makeElement("span"), "Certified"), details); educationList.append(article);
   }
 
   const contact = data.contact || {};
@@ -439,7 +530,14 @@ async function sendMessage(question) {
 }
 
 form.addEventListener("submit", (event) => { event.preventDefault(); sendMessage(input.value); });
-suggestions.addEventListener("click", (event) => { const button = event.target.closest("button"); if (button) sendMessage(button.textContent); });
+suggestions.addEventListener("click", (event) => {
+  const button = event.target.closest("button");
+  if (!button || submitButton.disabled) return;
+  sendMessage(button.textContent);
+  // A used suggestion would just repeat the same answer, so retire it.
+  button.hidden = true;
+  if (![...suggestions.querySelectorAll("button")].some((chip) => !chip.hidden)) suggestions.hidden = true;
+});
 fetch("/api/health").then((response) => response.json()).then((data) => { chatMode = data.chatMode === "ai" ? "ai" : "local"; updateModeLabel(); }).catch(() => { chatMode = "local"; updateModeLabel(); });
 
 function createNetwork() {

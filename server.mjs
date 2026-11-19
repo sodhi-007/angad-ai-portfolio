@@ -22,15 +22,43 @@ const adminPassword = process.env.ADMIN_PASSWORD || "";
 const rateLimits = new Map();
 const sessions = new Map();
 
-let portfolio = JSON.parse(await readFile(dataFile, "utf8"));
-const knowledgeStore = new KnowledgeStore(knowledgeDatabaseFile);
+// With TURSO_DATABASE_URL set, knowledge, portal edits, and the profile photo live in Turso and
+// survive restarts on hosts with ephemeral disks (e.g. Render's free tier). Without it, a local
+// SQLite file is used and portal edits are written to data/portfolio.json as before.
+const knowledgeStore = await KnowledgeStore.open({
+  url: process.env.TURSO_DATABASE_URL || undefined,
+  authToken: process.env.TURSO_AUTH_TOKEN || undefined,
+  path: knowledgeDatabaseFile
+});
+// An explicitly configured database URL is the source of truth for portal content.
+const durableStorage = Boolean(process.env.TURSO_DATABASE_URL);
+const storageDriver = knowledgeStore.remote ? "Turso" : "SQLite";
+const profilePhotoAsset = "profile-photo";
+
+function normalizePortfolio(value) {
+  // Older portal uploads pointed at files written to the server's disk, which do not survive restarts.
+  if (value?.site?.profileImage && /^\/profile-upload\./.test(value.site.profileImage)) value.site.profileImage = "/profile-photo";
+  return value;
+}
+
+async function loadPortfolio() {
+  const fromFile = JSON.parse(await readFile(dataFile, "utf8"));
+  if (!durableStorage) return normalizePortfolio(fromFile);
+  const stored = await knowledgeStore.getSetting("portfolio");
+  if (stored) return normalizePortfolio(stored);
+  const initial = normalizePortfolio(fromFile);
+  await knowledgeStore.setSetting("portfolio", initial);
+  return initial;
+}
+
+let portfolio = await loadPortfolio();
 let ragIndex;
 
 async function rebuildRagIndex() {
   ragIndex = await buildRagIndex(portfolio, {
     apiKey: process.env.OPENAI_API_KEY,
     embeddingModel,
-    extraChunks: knowledgeChunks(knowledgeStore.list())
+    extraChunks: knowledgeChunks(await knowledgeStore.list())
   });
 }
 
@@ -114,9 +142,15 @@ function validatePortfolio(value) {
 
 async function savePortfolio(nextPortfolio) {
   const validated = validatePortfolio(nextPortfolio);
-  const temporaryFile = `${dataFile}.tmp`;
-  await writeFile(temporaryFile, `${JSON.stringify(validated, null, 2)}\n`, "utf8");
-  await rename(temporaryFile, dataFile);
+  if (durableStorage) await knowledgeStore.setSetting("portfolio", validated);
+  try {
+    const temporaryFile = `${dataFile}.tmp`;
+    await writeFile(temporaryFile, `${JSON.stringify(validated, null, 2)}\n`, "utf8");
+    await rename(temporaryFile, dataFile);
+  } catch (error) {
+    // With Turso the database copy is authoritative; the JSON file is only a local mirror.
+    if (!durableStorage) throw error;
+  }
   portfolio = validated;
   await rebuildRagIndex();
 }
@@ -388,9 +422,9 @@ async function handleAdmin(request, response, url) {
   if (["PUT", "POST", "DELETE"].includes(request.method) && request.headers["x-admin-request"] !== "1") return sendJson(response, 403, { error: "Invalid editor request." });
   if (url.pathname === "/api/admin/state" && request.method === "GET") return sendJson(response, 200, {
     portfolio,
-    knowledge: knowledgeStore.list(),
+    knowledge: await knowledgeStore.list(),
     rag: { mode: ragIndex.mode, chunks: ragIndex.chunks.length, model: ragIndex.model },
-    storage: { driver: "SQLite", connected: knowledgeStore.health(), database: "knowledge" },
+    storage: { driver: storageDriver, durable: durableStorage, connected: await knowledgeStore.health(), database: "knowledge" },
     localAccess: !adminPassword
   });
   if (url.pathname === "/api/admin/logout" && request.method === "POST") {
@@ -405,14 +439,14 @@ async function handleAdmin(request, response, url) {
   }
   if (url.pathname === "/api/admin/knowledge" && request.method === "PUT") {
     const body = await readJsonBody(request, 20_000_000);
-    const knowledge = knowledgeStore.replaceAll(body.items);
+    const knowledge = await knowledgeStore.replaceAll(body.items);
     await rebuildRagIndex();
     return sendJson(response, 200, { ok: true, knowledge, rag: { mode: ragIndex.mode, chunks: ragIndex.chunks.length } });
   }
   if (url.pathname === "/api/admin/knowledge/import-url" && request.method === "POST") {
     const body = await readJsonBody(request, 20_000);
     const imported = await fetchWebSource(body.url);
-    const item = knowledgeStore.upsert({
+    const item = await knowledgeStore.upsert({
       title: String(body.title || imported.title || new URL(imported.url).hostname),
       category: String(body.category || "Web sources"),
       content: imported.text,
@@ -424,7 +458,7 @@ async function handleAdmin(request, response, url) {
       fetchedAt: imported.fetchedAt
     });
     await rebuildRagIndex();
-    return sendJson(response, 200, { ok: true, item, knowledge: knowledgeStore.list(), rag: { mode: ragIndex.mode, chunks: ragIndex.chunks.length } });
+    return sendJson(response, 200, { ok: true, item, knowledge: await knowledgeStore.list(), rag: { mode: ragIndex.mode, chunks: ragIndex.chunks.length } });
   }
   if (url.pathname === "/api/admin/knowledge/upload" && request.method === "POST") {
     const body = await readJsonBody(request, 12_000_000);
@@ -433,7 +467,7 @@ async function handleAdmin(request, response, url) {
     const buffer = Buffer.from(encoded, "base64");
     const extracted = await extractDocument(buffer, body.filename, body.mimeType);
     const fallbackTitle = extracted.name.replace(/\.[^.]+$/, "");
-    const item = knowledgeStore.addDocument({
+    const item = await knowledgeStore.addDocument({
       originalName: extracted.name,
       mimeType: extracted.mimeType,
       buffer,
@@ -445,24 +479,31 @@ async function handleAdmin(request, response, url) {
       visibility: body.visibility
     });
     await rebuildRagIndex();
-    return sendJson(response, 200, { ok: true, item, knowledge: knowledgeStore.list(), rag: { mode: ragIndex.mode, chunks: ragIndex.chunks.length } });
+    return sendJson(response, 200, { ok: true, item, knowledge: await knowledgeStore.list(), rag: { mode: ragIndex.mode, chunks: ragIndex.chunks.length } });
   }
   if (url.pathname === "/api/admin/profile" && request.method === "POST") {
     const body = await readJsonBody(request, 9_000_000);
     const match = String(body.dataUrl || "").match(/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/);
     if (!match) return sendJson(response, 400, { error: "Upload a JPEG, PNG, or WebP image." });
-    const extension = match[1] === "jpeg" ? "jpg" : match[1];
     const image = Buffer.from(match[2], "base64");
     if (!image.length || image.length > 6_000_000) return sendJson(response, 400, { error: "Image must be smaller than 6 MB." });
-    const filename = `profile-upload.${extension}`;
-    await writeFile(join(publicDirectory, filename), image);
+    // Stored in the database rather than on disk, so it survives restarts and redeploys.
+    await knowledgeStore.putAsset(profilePhotoAsset, `image/${match[1]}`, image);
     const nextPortfolio = structuredClone(portfolio);
     nextPortfolio.site ||= {};
-    nextPortfolio.site.profileImage = `/${filename}?v=${Date.now()}`;
+    nextPortfolio.site.profileImage = `/profile-photo?v=${Date.now()}`;
     await savePortfolio(nextPortfolio);
     return sendJson(response, 200, { ok: true, profileImage: portfolio.site.profileImage });
   }
   return sendJson(response, 404, { error: "Editor endpoint not found." });
+}
+
+async function serveProfilePhoto(request, response) {
+  const photo = await knowledgeStore.getAsset(profilePhotoAsset);
+  if (!photo) return serveStatic(request, response, new URL("/profile-headshot.jpg", "http://localhost"));
+  response.writeHead(200, { ...securityHeaders(photo.mimeType), "Cache-Control": "public, max-age=300", "Content-Length": photo.data.length });
+  if (request.method === "HEAD") return response.end();
+  return response.end(photo.data);
 }
 
 async function serveStatic(request, response, url) {
@@ -485,7 +526,8 @@ async function serveStatic(request, response, url) {
 const server = createServer(async (request, response) => {
   const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
   try {
-    if (url.pathname === "/api/health" && request.method === "GET") return sendJson(response, 200, { ok: true, chatMode: process.env.OPENAI_API_KEY ? "ai" : "retrieval", retrievalMode: ragIndex.mode, chunks: ragIndex.chunks.length, storage: { driver: "SQLite", connected: knowledgeStore.health() } });
+    if (url.pathname === "/api/health" && request.method === "GET") return sendJson(response, 200, { ok: true, chatMode: process.env.OPENAI_API_KEY ? "ai" : "retrieval", retrievalMode: ragIndex.mode, chunks: ragIndex.chunks.length, storage: { driver: storageDriver, durable: durableStorage, connected: await knowledgeStore.health() } });
+    if (url.pathname === "/profile-photo" && ["GET", "HEAD"].includes(request.method)) return await serveProfilePhoto(request, response);
     if (url.pathname === "/api/portfolio" && request.method === "GET") return sendJson(response, 200, { portfolio, updatedAt: Date.now() });
     if (url.pathname === "/api/chat" && request.method === "POST") return await handleChat(request, response);
     if (url.pathname.startsWith("/api/admin/")) return await handleAdmin(request, response, url);
@@ -503,7 +545,8 @@ server.listen(port, host, () => {
   const chatReason = hasKey ? `${model} + ${ragIndex.mode} retrieval` : "OPENAI_API_KEY not set \u2014 using local ranked retrieval";
   console.log(`Portfolio running at http://${host}:${port}`);
   console.log(`Chat mode: ${chatMode} (${chatReason})`);
-  console.log(`Knowledge database: ${knowledgeStore.list().length} sources`);
+  knowledgeStore.list().then((items) => console.log(`Knowledge database (${storageDriver}${durableStorage ? ", durable" : ", local file"}): ${items.length} sources`));
+  if (!durableStorage && process.env.RENDER) console.warn("[storage] TURSO_DATABASE_URL is not set: portal edits, uploads, and the profile photo will be lost when this Render instance restarts.");
   console.log(`Owner portal: http://${host}:${port}/admin.html${adminPassword ? " (password protected)" : " (local access)"}`);
   if (hasKey && !/mini|small|nano/i.test(model)) console.log(`[note] ${model} is a full-size model. Consider a mini variant for lower latency in this portfolio chatbot use case.`);
 });

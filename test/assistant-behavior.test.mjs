@@ -27,6 +27,17 @@ test("greetings or thanks followed by a real question do not swallow the questio
   assert.equal(retrievalQuestion("Hey, what did Angad build at CIMA+?"), "what did Angad build at CIMA+?");
 });
 
+test("limits questions explain what the assistant cannot do", () => {
+  for (const query of ["What can't you do?", "What are your limits?", "What are your limitations?", "What don't you know?"]) {
+    const answer = smallTalkReply(query);
+    assert.ok(answer, `Expected a reply for: ${query}`);
+    assert.match(answer, /can't answer general knowledge/);
+    assert.match(answer, /write code/);
+  }
+  assert.match(smallTalkReply("Quelles sont tes limites ?", "fr"), /questions générales/);
+  assert.match(smallTalkReply("Qu'est-ce que tu ne peux pas faire ?", "fr"), /écrire du code/);
+});
+
 test("small talk stays brief and respects the selected language", () => {
   assert.equal(smallTalkReply("thanks!"), "You’re welcome!");
   assert.equal(smallTalkReply("merci", "fr"), "Avec plaisir !");

@@ -1,0 +1,4 @@
+# Evidently 0.7.23 imports Pandas internals removed in Pandas 3.x.
+pandas==2.3.3
+evidently==0.7.23
+litellm==1.110.3

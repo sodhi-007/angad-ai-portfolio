@@ -7,7 +7,8 @@
     <title>Angad Portfolio Studio</title>
     <link rel="stylesheet" href="/admin.css?v=1" />
     <link rel="stylesheet" href="/admin-knowledge.css?v=1" />
-    <script src="/admin.js?v=3" defer></script>
+    <link rel="stylesheet" href="/admin-eval.css?v=1" />
+    <script src="/admin.js?v=4" defer></script>
   </head>
   <body>
     <header class="studio-header">
@@ -26,13 +27,48 @@
 
       <div class="studio" data-studio hidden>
         <aside class="studio-nav">
-          <a href="#overview">Overview</a><a href="#layout">Layout</a><a href="#profile">Profile</a><a href="#knowledge">Knowledge</a><a href="#experience">Experience</a><a href="#projects">Projects</a><a href="#skills">Skills</a><a href="#education">Education</a><a href="#contact">Contact</a>
+          <a href="#overview">Overview</a><a href="#rag-eval">RAG metrics</a><a href="#layout">Layout</a><a href="#profile">Profile</a><a href="#knowledge">Knowledge</a><a href="#experience">Experience</a><a href="#projects">Projects</a><a href="#skills">Skills</a><a href="#education">Education</a><a href="#contact">Contact</a>
         </aside>
 
         <div class="studio-content">
           <section class="panel overview" id="overview">
             <div><span class="eyebrow">KNOWLEDGE SYSTEM</span><h2>Retrieval status</h2><p>Every save rebuilds the portfolio knowledge index used by the chatbot.</p></div>
             <div class="stats"><article><span>Retriever</span><strong data-rag-mode>Checking…</strong></article><article><span>Knowledge chunks</span><strong data-rag-chunks>Checking…</strong></article><article><span>Database</span><strong data-db-status>Checking…</strong></article><article><span>Generation</span><strong data-ai-mode>Server controlled</strong></article></div>
+          </section>
+
+          <section class="panel" id="rag-eval" aria-labelledby="rag-eval-heading">
+            <div class="panel-heading">
+              <div>
+                <h2 id="rag-eval-heading">RAG evaluation</h2>
+                <p data-eval-run>Scores from the latest completed Evidently judge run.</p>
+              </div>
+              <button type="button" data-eval-refresh>Refresh</button>
+            </div>
+            <p class="eval-message" data-eval-status role="status"></p>
+            <div data-eval-results hidden>
+              <div class="stats eval-stats" data-eval-metrics></div>
+              <div class="eval-table-scroll" role="region" aria-label="RAG scores by question" tabindex="0">
+                <table class="eval-table">
+                  <thead><tr>
+                    <th scope="col">Question</th>
+                    <th scope="col">Context precision</th>
+                    <th scope="col">Context recall</th>
+                    <th scope="col">Faithfulness</th>
+                    <th scope="col">Answer relevancy</th>
+                  </tr></thead>
+                  <tbody data-eval-cases></tbody>
+                </table>
+              </div>
+              <p class="eval-caption">A dash marks an unscored question. Averages include scored questions only.</p>
+            </div>
+            <details class="eval-import">
+              <summary>Import a report</summary>
+              <form data-eval-import>
+                <label>Evidently dashboard file<input type="file" name="report" accept=".json,application/json" required /></label>
+                <button type="submit" class="primary">Import</button>
+              </form>
+              <p class="eval-caption">Choose <code>dashboard.json</code> from the RAG judge output.</p>
+            </details>
           </section>
 
           <section class="panel" id="layout">

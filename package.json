@@ -15,7 +15,10 @@
   "scripts": {
     "start": "node server.mjs",
     "dev": "node --watch server.mjs",
-    "check": "node --check server.mjs && node --check public/app.js && node --check public/admin.js && node --check lib/chat.mjs && node --check lib/rag.mjs && node --check lib/assistant-behavior.mjs && node --check lib/knowledge-store.mjs && node --check lib/document-extractor.mjs",
+    "eval": "node scripts/eval.mjs",
+    "eval:judge": "python3 scripts/judge.py",
+    "eval:judge:rag": "python3 scripts/judge_rag.py",
+    "check": "node --check server.mjs && node --check public/app.js && node --check public/admin.js && node --check lib/chat.mjs && node --check lib/rag.mjs && node --check lib/assistant-behavior.mjs && node --check lib/knowledge-store.mjs && node --check lib/document-extractor.mjs && node --check scripts/eval.mjs && node --check scripts/eval-reference.mjs",
     "test": "node --test"
   }
 }

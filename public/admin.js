@@ -10,6 +10,18 @@ let skillsDraft = [];
 let knowledge = [];
 let dirty = false;
 
+const evalMetrics = [
+  ["context_precision", "Context precision"],
+  ["context_recall", "Context recall"],
+  ["faithfulness", "Faithfulness"],
+  ["answer_relevancy", "Answer relevancy"]
+];
+const evalScoreFormat = new Intl.NumberFormat(undefined, { style: "percent", maximumFractionDigits: 1 });
+const evalRefresh = document.querySelector("[data-eval-refresh]");
+const evalForm = document.querySelector("[data-eval-import]");
+const evalImport = evalForm.querySelector("button");
+const evalStatus = document.querySelector("[data-eval-status]");
+
 function setDirty(value = true, message = "Unsaved changes") {
   dirty = value;
   saveBar.hidden = !value;
@@ -24,6 +36,104 @@ function request(path, options = {}) {
       return data;
     });
 }
+
+function setEvalStatus(message, isError = false) {
+  evalStatus.textContent = message;
+  evalStatus.toggleAttribute("data-error", isError);
+}
+
+function renderEvalReport({ report, source, warning }, message) {
+  const run = document.querySelector("[data-eval-run]");
+  const results = document.querySelector("[data-eval-results]");
+  results.hidden = !report;
+  if (!report) {
+    run.textContent = "Scores from the latest completed Evidently judge run.";
+    setEvalStatus(warning || "No report yet. Run the RAG judge locally, or import dashboard.json.", Boolean(warning));
+    return;
+  }
+
+  const date = new Date(report.judgedAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+  run.textContent = [
+    `${report.cases.length} questions`,
+    [report.provider, report.model].filter(Boolean).join("/"),
+    report.chatMode && `${report.chatMode} mode`,
+    report.referencePdf,
+    date,
+    source === "local" ? "Local report" : "Imported report"
+  ].filter(Boolean).join(" · ");
+
+  const formatScore = (score) => score === null ? "—" : evalScoreFormat.format(score);
+  const cards = evalMetrics.map(([key, label]) => {
+    const { mean, scoredCases } = report.averages[key];
+    const card = document.createElement("article");
+    const heading = document.createElement("span");
+    heading.textContent = label;
+    const score = document.createElement("strong");
+    score.textContent = formatScore(mean);
+    const coverage = document.createElement("small");
+    coverage.textContent = `${scoredCases}/${report.cases.length} scored`;
+    card.append(heading, score, coverage);
+    return card;
+  });
+  document.querySelector("[data-eval-metrics]").replaceChildren(...cards);
+
+  const rows = report.cases.map(({ question, scores }) => {
+    const row = document.createElement("tr");
+    const name = document.createElement("th");
+    name.scope = "row";
+    name.textContent = question;
+    row.append(name);
+    for (const [key] of evalMetrics) {
+      const cell = row.insertCell();
+      cell.textContent = formatScore(scores[key]);
+    }
+    return row;
+  });
+  document.querySelector("[data-eval-cases]").replaceChildren(...rows);
+  setEvalStatus(warning || message, Boolean(warning));
+}
+
+async function loadEvalReport(message = "") {
+  evalRefresh.disabled = true;
+  evalImport.disabled = true;
+  setEvalStatus("Loading report…");
+  try {
+    renderEvalReport(await request("/api/admin/rag-eval", { cache: "no-store" }), message);
+  } catch (error) {
+    setEvalStatus(error.message, true);
+  } finally {
+    evalRefresh.disabled = false;
+    evalImport.disabled = false;
+  }
+}
+
+evalRefresh.addEventListener("click", () => loadEvalReport());
+evalForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const file = new FormData(evalForm).get("report");
+  if (!(file instanceof File) || !file.size) return;
+  if (file.size > 256_000) {
+    setEvalStatus("Choose a dashboard.json file smaller than 256 KB.", true);
+    return;
+  }
+  evalRefresh.disabled = true;
+  evalImport.disabled = true;
+  setEvalStatus("Importing report…");
+  try {
+    await request("/api/admin/rag-eval", {
+      method: "PUT",
+      headers: { "X-Admin-Request": "1" },
+      body: await file.text()
+    });
+    evalForm.reset();
+    await loadEvalReport("Report imported.");
+  } catch (error) {
+    setEvalStatus(error.message, true);
+  } finally {
+    evalRefresh.disabled = false;
+    evalImport.disabled = false;
+  }
+});
 
 function field(label, value, onInput, options = {}) {
   const wrapper = document.createElement("label");
@@ -224,7 +334,10 @@ function mount(data) {
 }
 
 async function loadStudio() {
-  try { mount(await request("/api/admin/state")); }
+  try {
+    mount(await request("/api/admin/state"));
+    void loadEvalReport();
+  }
   catch (error) { if (error.status === 401) loginView.hidden = false; else { loginView.hidden = false; document.querySelector("[data-login-message]").textContent = error.message; } }
 }
 

@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomBytes, timingSafeEqual } from "node:crypto";
@@ -9,6 +9,7 @@ import { buildRagIndex, localRagAnswer, resolveChatQuery, retrieve } from "./lib
 import { smallTalkReply, retrievalQuestion } from "./lib/assistant-behavior.mjs";
 import { KnowledgeStore, knowledgeChunks } from "./lib/knowledge-store.mjs";
 import { extractDocument } from "./lib/document-extractor.mjs";
+import { validateEvalDashboard } from "./lib/eval-dashboard.mjs";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
 const publicDirectory = join(root, "public");
@@ -19,6 +20,7 @@ const host = process.env.HOST || "127.0.0.1";
 const model = process.env.OPENAI_MODEL || "gpt-6-luna";
 const embeddingModel = process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small";
 const adminPassword = process.env.ADMIN_PASSWORD || "";
+const evalTraceDir = ["127.0.0.1", "::1"].includes(host) ? process.env.EVAL_TRACE_DIR : "";
 const rateLimits = new Map();
 const sessions = new Map();
 
@@ -34,6 +36,9 @@ const knowledgeStore = await KnowledgeStore.open({
 const durableStorage = Boolean(process.env.TURSO_DATABASE_URL);
 const storageDriver = knowledgeStore.remote ? "Turso" : "SQLite";
 const profilePhotoAsset = "profile-photo";
+const evalDashboardSetting = "rag_eval_dashboard";
+const evalDashboardFile = join(root, "artifacts", "eval", "rag-judge", "dashboard.json");
+const evalDashboardMaxBytes = 256_000;
 
 function normalizePortfolio(value) {
   // Older portal uploads pointed at files written to the server's disk, which do not survive restarts.
@@ -105,6 +110,14 @@ function allowRequest(request) {
 
 function isLoopback(request) {
   return ["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(request.socket.remoteAddress || "");
+}
+
+async function traceEvaluation(request, query, evidence) {
+  const id = request.headers["x-portfolio-eval-id"];
+  if (!evalTraceDir || !isLoopback(request) || typeof id !== "string" || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(id)) return;
+  await mkdir(evalTraceDir, { recursive: true, mode: 0o700 });
+  const chunks = evidence.map(({ id, title, text }) => ({ id, title, text }));
+  await writeFile(join(evalTraceDir, `${id}.json`), JSON.stringify({ query, chunks }), { flag: "wx", mode: 0o600 });
 }
 
 function cookies(request) {
@@ -349,10 +362,16 @@ async function handleChat(request, response) {
     const language = requestedLanguage === "fr" ? "fr" : "en";
     if (typeof message !== "string" || !message.trim() || message.length > 800) return sendJson(response, 400, { error: "Message must be between 1 and 800 characters." });
     const conversationalAnswer = smallTalkReply(message, language, history);
-    if (conversationalAnswer) return sendJson(response, 200, { answer: conversationalAnswer, mode: "conversation", retrievalMode: ragIndex.mode, sources: [] });
+    if (conversationalAnswer) {
+      await traceEvaluation(request, message, []);
+      return sendJson(response, 200, { answer: conversationalAnswer, mode: "conversation", retrievalMode: ragIndex.mode, sources: [] });
+    }
     const question = retrievalQuestion(message);
     const offTopic = isOffTopic(question, language);
-    if (offTopic) return sendJson(response, 200, { answer: offTopic, mode: "retrieval", retrievalMode: ragIndex.mode, sources: [] });
+    if (offTopic) {
+      await traceEvaluation(request, question, []);
+      return sendJson(response, 200, { answer: offTopic, mode: "retrieval", retrievalMode: ragIndex.mode, sources: [] });
+    }
     const query = resolveChatQuery(question, history, ragIndex);
     const followUp = query !== question;
     const previousAnswer = followUp && Array.isArray(history)
@@ -362,6 +381,7 @@ async function handleChat(request, response) {
     const retrieveStart = Date.now();
     const evidence = (await retrieve(query, ragIndex, { apiKey, limit: 5, followUp, previousAnswer })).filter((item) => item.score > 0);
     const retrieveMs = Date.now() - retrieveStart;
+    await traceEvaluation(request, query, evidence);
     const sources = evidence.map(({ id, title, score, metadata }) => ({
       id,
       title,
@@ -420,6 +440,40 @@ async function handleAdmin(request, response, url) {
   }
   if (!isAdmin(request)) return sendJson(response, 401, { error: "Sign in to the owner portal." });
   if (["PUT", "POST", "DELETE"].includes(request.method) && request.headers["x-admin-request"] !== "1") return sendJson(response, 403, { error: "Invalid editor request." });
+  if (url.pathname === "/api/admin/rag-eval" && request.method === "GET") {
+    const imported = await knowledgeStore.getSetting(evalDashboardSetting);
+    if (["127.0.0.1", "::1"].includes(host) && isLoopback(request)) {
+      try {
+        if ((await stat(evalDashboardFile)).size > evalDashboardMaxBytes) throw new Error("Report is too large.");
+        const local = validateEvalDashboard(JSON.parse(await readFile(evalDashboardFile, "utf8")));
+        if (!imported || local.judgedAt >= imported.judgedAt) {
+          return sendJson(response, 200, { report: local, source: "local" }, { "Cache-Control": "no-store" });
+        }
+      } catch (error) {
+        if (error.code !== "ENOENT") {
+          return sendJson(response, 200, {
+            report: imported,
+            source: imported ? "imported" : null,
+            warning: `Local report could not be loaded. ${error.message}`
+          }, { "Cache-Control": "no-store" });
+        }
+      }
+    }
+    return sendJson(response, 200, { report: imported, source: imported ? "imported" : null }, { "Cache-Control": "no-store" });
+  }
+  if (url.pathname === "/api/admin/rag-eval" && request.method === "PUT") {
+    let report;
+    try {
+      report = validateEvalDashboard(await readJsonBody(request, evalDashboardMaxBytes));
+    } catch (error) {
+      if (error.message === "PAYLOAD_TOO_LARGE") throw error;
+      return sendJson(response, 400, {
+        error: error instanceof SyntaxError ? "The report file must contain valid JSON." : error.message
+      }, { "Cache-Control": "no-store" });
+    }
+    await knowledgeStore.setSetting(evalDashboardSetting, report);
+    return sendJson(response, 200, { ok: true }, { "Cache-Control": "no-store" });
+  }
   if (url.pathname === "/api/admin/state" && request.method === "GET") return sendJson(response, 200, {
     portfolio,
     knowledge: await knowledgeStore.list(),

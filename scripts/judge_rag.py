@@ -10,18 +10,68 @@ from statistics import mean
 from tempfile import NamedTemporaryFile
 
 import pandas as pd
+from openai import APIConnectionError, APIStatusError
 from evidently import DataDefinition, Dataset, Report
 from evidently.descriptors import LLMEval
 from evidently.legacy.core import ColumnType
 from evidently.llm.models import LLMMessage
 from evidently.llm.templates import BaseLLMPromptTemplate
 from evidently.llm.utils.blocks import PromptBlock
+from evidently.llm.utils.errors import LLMResponseParseError
 from evidently.presets import TextEvals
 
 from judge import DEFAULT_INPUT, load_cases, write_json
 
 
 METRICS = ("context_precision", "context_recall", "faithfulness", "answer_relevancy")
+
+
+class JudgeConfigurationError(ValueError):
+    pass
+
+
+def configure_openai_key():
+    key = os.environ.get("OPENAI_API_KEY", "").strip()
+    if not key:
+        raise JudgeConfigurationError("Set OPENAI_API_KEY in the judge environment or run --dry-run.")
+    if any(character.isspace() for character in key):
+        raise JudgeConfigurationError("OPENAI_API_KEY contains whitespace inside the key. Paste the key on a single line.")
+    os.environ["OPENAI_API_KEY"] = key
+
+
+def safe_judge_error(error):
+    """Describe the failure without exposing headers, prompts, or provider response bodies."""
+    causes = [error]
+    seen = set()
+    while causes:
+        cause = causes.pop()
+        if id(cause) in seen:
+            continue
+        seen.add(id(cause))
+        if isinstance(cause, JudgeConfigurationError):
+            return str(cause)
+        if isinstance(cause, APIStatusError):
+            status = cause.status_code
+            if status == 429 and cause.code == "insufficient_quota":
+                return "OpenAI returned HTTP 429 (insufficient quota). Check API billing and the judge project's budget."
+            hint = {
+                400: "The judge request was rejected.",
+                401: "Check the OPENAI_API_KEY Actions secret.",
+                403: "Check the key's project permissions.",
+                404: "Check access to the configured judge model.",
+                429: "The judge reached an API rate limit. Retry later.",
+            }.get(status, "Check the judge provider's availability.")
+            return f"OpenAI returned HTTP {status}. {hint}"
+        if isinstance(cause, APIConnectionError):
+            return "The judge could not connect to OpenAI. Check API availability or retry."
+        if isinstance(cause, LLMResponseParseError):
+            return "Evidently could not parse a judge response."
+        causes.extend(
+            nested for nested in (
+                cause.__context__, cause.__cause__, getattr(cause, "original_error", None)
+            ) if isinstance(nested, Exception)
+        )
+    return f"The judge failed with {type(error).__name__}."
 
 
 class VerdictTemplate(BaseLLMPromptTemplate):
@@ -263,8 +313,8 @@ def main():
     if args.dry_run:
         print("Validated input and judge templates. No model calls made.")
         return
-    if args.provider == "openai" and not os.getenv("OPENAI_API_KEY"):
-        raise ValueError("Set OPENAI_API_KEY in the judge environment or run --dry-run.")
+    if args.provider == "openai":
+        configure_openai_key()
 
     results = evaluate(cases, args)
     columns = ["name", "kind", "mode", *METRICS]
@@ -300,5 +350,10 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except (OSError, ValueError) as error:
-        raise SystemExit(f"RAG evaluation failed: {error}") from error
+    except Exception as error:
+        if os.getenv("RAG_JUDGE_SAFE_ERRORS") == "1":
+            print(f"RAG evaluation failed. {safe_judge_error(error)}", flush=True)
+            raise SystemExit(1) from None
+        if isinstance(error, (OSError, ValueError)):
+            raise SystemExit(f"RAG evaluation failed: {error}") from error
+        raise

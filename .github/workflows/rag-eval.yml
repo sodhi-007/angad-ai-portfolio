@@ -37,7 +37,7 @@ jobs:
           RAG_EVAL_TOKEN: ${{ secrets.RAG_EVAL_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          if [[ ! "$RAG_EVAL_TOKEN" =~ ^[a-f0-9]{64}$ || -z "$OPENAI_API_KEY" ]]; then
+          if [[ ! "$RAG_EVAL_TOKEN" =~ ^[a-f0-9]{64}$ || ! "$OPENAI_API_KEY" =~ [^[:space:]] ]]; then
             echo "::error::Set the RAG_EVAL_TOKEN and OPENAI_API_KEY repository secrets before running the benchmark."
             exit 1
           fi
@@ -66,9 +66,10 @@ jobs:
       - name: Score the benchmark with Evidently
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          RAG_JUDGE_SAFE_ERRORS: '1'
         run: |
           if ! python scripts/judge_rag.py 2>"$RUNNER_TEMP/rag-judge-errors.log"; then
-            echo "::error::The judge failed. Check the OpenAI key and quota. Detailed errors can contain benchmark content."
+            echo "::error::The RAG judge step failed. See the diagnostic above if available."
             exit 1
           fi
 

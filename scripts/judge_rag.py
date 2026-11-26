@@ -122,9 +122,9 @@ class VerdictTemplate(BaseLLMPromptTemplate):
             if not isinstance(verdict, dict) or not set(self.fields).issubset(verdict):
                 raise ValueError("Missing verdict fields.")
             verdict = {field: verdict[field] for field in self.fields}
-            if "relevant_chunks" in verdict:
-                for field, source in (("relevant_chunks", "retrieved_chunks"), ("covered_facts", "reference_facts")):
-                    verdict[field] = boolean_verdicts(verdict[field], len(payload[source]), field)
+            if "relevant_ranks" in verdict:
+                verdict["relevant_ranks"] = selection_verdict(verdict["relevant_ranks"], len(payload["retrieved_chunks"]))
+                verdict["covered_fact_numbers"] = selection_verdict(verdict["covered_fact_numbers"], len(payload["reference_facts"]))
             if "claims" in verdict:
                 verdict["claims"] = claim_verdicts(verdict["claims"])
             if "label" in verdict:
@@ -157,24 +157,25 @@ class VerdictTemplate(BaseLLMPromptTemplate):
         return next(iter(self.fields))
 
     def get_type(self, subcolumn):
-        if subcolumn in {"relevant_chunks", "covered_facts", "claims"}:
+        if subcolumn in {"relevant_ranks", "covered_fact_numbers", "claims"}:
             return ColumnType.List
         return ColumnType.Text
 
 
 RETRIEVAL = VerdictTemplate(
     criteria="""Evaluate ranked retrieval for the question and conversation shown in the data.
-For each retrieved chunk in order, mark whether its content helps answer the actual question.
+Select the ranks of the retrieved chunks whose content helps answer the actual question.
 A chunk can be useful even if it supports a valid answer detail outside the reference facts.
-For each PDF reference fact in order, mark whether the retrieved chunks collectively support it.
+Select the fact numbers of the PDF reference facts that the retrieved chunks collectively support.
+Copy the rank and fact_number values in the input. Return an empty list for a field if none qualify.
 Treat the PDF excerpts as citations for the reference facts only. They were not necessarily retrieved.
 Only content in retrieved_chunks can establish coverage. Do not use external knowledge.""",
     fields={
-        "relevant_chunks": "JSON array of booleans, one per retrieved chunk in order",
-        "covered_facts": "JSON array of booleans, one per reference fact in order",
+        "relevant_ranks": "JSON array of integer ranks of relevant retrieved chunks",
+        "covered_fact_numbers": "JSON array of integer fact numbers supported by the retrieved chunks",
         "reason": "Brief explanation identifying the main retrieval misses",
     },
-    example={"relevant_chunks": [True, False], "covered_facts": [False], "reason": "The retrieved text omits a reference fact."},
+    example={"relevant_ranks": [1], "covered_fact_numbers": [1], "reason": "The first chunk supports the first reference fact."},
 )
 
 FAITHFULNESS = VerdictTemplate(
@@ -228,12 +229,15 @@ def average_precision(relevant):
     return precision_sum / hits if hits else 0.0
 
 
-def boolean_verdicts(values, expected_count, label):
+def selection_verdict(values, max_index):
     if isinstance(values, str):
         values = json.loads(values)
-    if not isinstance(values, list) or len(values) != expected_count or any(type(item) is not bool for item in values):
-        raise ValueError(f"Judge returned invalid {label}. Expected {expected_count} boolean verdicts.")
-    return values
+    if not isinstance(values, list):
+        raise ValueError("Expected a list of ranks or fact numbers.")
+    values = [int(item) if isinstance(item, str) and item.isascii() and item.isdecimal() else item for item in values]
+    if any(type(item) is not int or not 1 <= item <= max_index for item in values):
+        raise ValueError("Invalid rank or fact number.")
+    return sorted(set(values))
 
 
 def claim_verdicts(claims):
@@ -257,7 +261,11 @@ def evaluate(cases, args):
         facts = case["referenceFacts"]
         question = {"question": case["question"], "conversation": case.get("history", [])}
         if facts and chunks:
-            retrieval_rows.append((name, {**question, "retrieved_chunks": chunks, "reference_facts": facts}))
+            retrieval_rows.append((name, {
+                **question,
+                "retrieved_chunks": [{**chunk, "rank": rank} for rank, chunk in enumerate(chunks, 1)],
+                "reference_facts": [{**fact, "fact_number": number} for number, fact in enumerate(facts, 1)],
+            }))
         if case.get("kind") in {"factual", "conversation"}:
             faithfulness_rows.append((name, {"answer": case["response"], "retrieved_chunks": chunks}))
         relevancy_rows.append((name, {
@@ -287,8 +295,11 @@ def evaluate(cases, args):
             if chunks:
                 verdict = retrieval[name]
                 row["retrieval_judgment"] = verdict
-                row["context_precision"] = average_precision(verdict["relevant_chunks"])
-                row["context_recall"] = mean(verdict["covered_facts"])
+                relevant = set(verdict["relevant_ranks"])
+                row["context_precision"] = average_precision(
+                    rank in relevant for rank in range(1, len(chunks) + 1)
+                )
+                row["context_recall"] = len(verdict["covered_fact_numbers"]) / len(facts)
             else:
                 row.update(context_precision=0.0, context_recall=0.0)
         if name in faithfulness:

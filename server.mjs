@@ -10,6 +10,7 @@ import { smallTalkReply, retrievalQuestion } from "./lib/assistant-behavior.mjs"
 import { KnowledgeStore, knowledgeChunks } from "./lib/knowledge-store.mjs";
 import { extractDocument } from "./lib/document-extractor.mjs";
 import { validateEvalDashboard } from "./lib/eval-dashboard.mjs";
+import { evalCases } from "./lib/eval-cases.mjs";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
 const publicDirectory = join(root, "public");
@@ -21,7 +22,11 @@ const model = process.env.OPENAI_MODEL || "gpt-6-luna";
 const embeddingModel = process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small";
 const adminPassword = process.env.ADMIN_PASSWORD || "";
 const evalTraceDir = ["127.0.0.1", "::1"].includes(host) ? process.env.EVAL_TRACE_DIR : "";
+const evalToken = /^[a-f0-9]{64}$/.test(process.env.RAG_EVAL_TOKEN || "") ? process.env.RAG_EVAL_TOKEN : "";
+const deployCommit = process.env.RENDER_GIT_COMMIT || "";
+const evalCasesByName = new Map(evalCases.map((item) => [item.name, item]));
 const rateLimits = new Map();
+const evalRateLimits = new Map();
 const sessions = new Map();
 
 // With TURSO_DATABASE_URL set, knowledge, portal edits, and the profile photo live in Turso and
@@ -98,13 +103,13 @@ async function readJsonBody(request, limit = 16_000) {
   return JSON.parse(body || "{}");
 }
 
-function allowRequest(request) {
-  const ip = request.socket.remoteAddress || "unknown";
+function allowRequest(request, limits = rateLimits) {
+  const ip = limits === evalRateLimits ? "benchmark" : request.socket.remoteAddress || "unknown";
   const now = Date.now();
-  const entry = rateLimits.get(ip) || { count: 0, resetAt: now + 60_000 };
+  const entry = limits.get(ip) || { count: 0, resetAt: now + 60_000 };
   if (now > entry.resetAt) { entry.count = 0; entry.resetAt = now + 60_000; }
   entry.count += 1;
-  rateLimits.set(ip, entry);
+  limits.set(ip, entry);
   return entry.count <= 20;
 }
 
@@ -112,12 +117,16 @@ function isLoopback(request) {
   return ["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(request.socket.remoteAddress || "");
 }
 
-async function traceEvaluation(request, query, evidence) {
+async function traceEvaluation(request, query, evidence, hostedEval) {
   const id = request.headers["x-portfolio-eval-id"];
-  if (!evalTraceDir || !isLoopback(request) || typeof id !== "string" || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(id)) return;
+  const localCapture = evalTraceDir && isLoopback(request) && typeof id === "string" &&
+    /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(id);
+  if (!hostedEval && !localCapture) return {};
+  const trace = { query, chunks: evidence.map(({ id, title, text }) => ({ id, title, text })) };
+  if (hostedEval) return { trace };
   await mkdir(evalTraceDir, { recursive: true, mode: 0o700 });
-  const chunks = evidence.map(({ id, title, text }) => ({ id, title, text }));
-  await writeFile(join(evalTraceDir, `${id}.json`), JSON.stringify({ query, chunks }), { flag: "wx", mode: 0o600 });
+  await writeFile(join(evalTraceDir, `${id}.json`), JSON.stringify(trace), { flag: "wx", mode: 0o600 });
+  return {};
 }
 
 function cookies(request) {
@@ -354,23 +363,37 @@ function isOffTopic(query, language) {
   return null;
 }
 
-async function handleChat(request, response) {
-  if (!allowRequest(request)) return sendJson(response, 429, { error: "Too many requests. Please wait a minute and try again." });
+async function handleChat(request, response, hostedEval = false) {
+  const extraHeaders = hostedEval ? { "Cache-Control": "no-store" } : {};
+  const reply = (status, data) => sendJson(response, status, data, extraHeaders);
+  if (!allowRequest(request, hostedEval ? evalRateLimits : rateLimits)) {
+    return reply(429, { error: "Too many requests. Please wait a minute and try again." });
+  }
   try {
     const totalStart = Date.now();
-    const { message, history, language: requestedLanguage } = await readJsonBody(request);
+    let { message, history, language: requestedLanguage, caseName, previousAnswer: benchmarkAnswer } = await readJsonBody(request);
+    if (hostedEval) {
+      const benchmark = evalCasesByName.get(caseName);
+      if (!benchmark) return reply(400, { error: "Unknown benchmark case." });
+      message = benchmark.message;
+      requestedLanguage = benchmark.language;
+      history = benchmark.after && typeof benchmarkAnswer === "string" ? [
+        { role: "user", content: evalCasesByName.get(benchmark.after).message },
+        { role: "assistant", content: benchmarkAnswer.slice(0, 1200) }
+      ] : [];
+    }
     const language = requestedLanguage === "fr" ? "fr" : "en";
-    if (typeof message !== "string" || !message.trim() || message.length > 800) return sendJson(response, 400, { error: "Message must be between 1 and 800 characters." });
+    if (typeof message !== "string" || !message.trim() || message.length > 800) return reply(400, { error: "Message must be between 1 and 800 characters." });
     const conversationalAnswer = smallTalkReply(message, language, history);
     if (conversationalAnswer) {
-      await traceEvaluation(request, message, []);
-      return sendJson(response, 200, { answer: conversationalAnswer, mode: "conversation", retrievalMode: ragIndex.mode, sources: [] });
+      const context = await traceEvaluation(request, message, [], hostedEval);
+      return reply(200, { answer: conversationalAnswer, mode: "conversation", retrievalMode: ragIndex.mode, sources: [], ...context });
     }
     const question = retrievalQuestion(message);
     const offTopic = isOffTopic(question, language);
     if (offTopic) {
-      await traceEvaluation(request, question, []);
-      return sendJson(response, 200, { answer: offTopic, mode: "retrieval", retrievalMode: ragIndex.mode, sources: [] });
+      const context = await traceEvaluation(request, question, [], hostedEval);
+      return reply(200, { answer: offTopic, mode: "retrieval", retrievalMode: ragIndex.mode, sources: [], ...context });
     }
     const query = resolveChatQuery(question, history, ragIndex);
     const followUp = query !== question;
@@ -381,7 +404,7 @@ async function handleChat(request, response) {
     const retrieveStart = Date.now();
     const evidence = (await retrieve(query, ragIndex, { apiKey, limit: 5, followUp, previousAnswer })).filter((item) => item.score > 0);
     const retrieveMs = Date.now() - retrieveStart;
-    await traceEvaluation(request, query, evidence);
+    const context = await traceEvaluation(request, query, evidence, hostedEval);
     const sources = evidence.map(({ id, title, score, metadata }) => ({
       id,
       title,
@@ -394,13 +417,13 @@ async function handleChat(request, response) {
         const llmStart = Date.now();
         const sseHeaders = {
           ...securityHeaders("text/event-stream"),
-          "Cache-Control": "no-cache",
+          "Cache-Control": hostedEval ? "no-store" : "no-cache",
           "Connection": "keep-alive",
           "X-Accel-Buffering": "no"
         };
         response.writeHead(200, sseHeaders);
         response.flushHeaders();
-        response.write(`data: ${JSON.stringify({ sources, mode: "ai", retrievalMode: ragIndex.mode })}\n\n`);
+        response.write(`data: ${JSON.stringify({ sources, mode: "ai", retrievalMode: ragIndex.mode, ...context })}\n\n`);
         const chatMessages = buildChatMessages(question, history, language, evidence);
         const answer = await streamOpenAI(chatMessages, response, request);
         const llmMs = Date.now() - llmStart;
@@ -422,11 +445,56 @@ async function handleChat(request, response) {
     const answer = localRagAnswer(query, evidence, language, { followUp, history });
     const totalMs = Date.now() - totalStart;
     console.log(`[chat] retrieve=${retrieveMs}ms total=${totalMs}ms mode=retrieval`);
-    return sendJson(response, 200, { answer, mode: "retrieval", retrievalMode: ragIndex.mode, sources });
+    return reply(200, { answer, mode: "retrieval", retrievalMode: ragIndex.mode, sources, ...context });
   } catch (error) {
     const status = error.message === "PAYLOAD_TOO_LARGE" ? 413 : 400;
-    return sendJson(response, status, { error: status === 413 ? "Request body is too large." : "Invalid JSON request." });
+    return reply(status, { error: status === 413 ? "Request body is too large." : "Invalid JSON request." });
   }
+}
+
+async function saveEvalDashboard(request, response, automated = false) {
+  const headers = { "Cache-Control": "no-store" };
+  let report;
+  try {
+    report = validateEvalDashboard(await readJsonBody(request, evalDashboardMaxBytes));
+  } catch (error) {
+    if (error.message === "PAYLOAD_TOO_LARGE") throw error;
+    return sendJson(response, 400, {
+      error: error instanceof SyntaxError ? "The report file must contain valid JSON." : error.message
+    }, headers);
+  }
+  if (automated) {
+    if (report.commit !== deployCommit) return sendJson(response, 409, { error: "Report is for a different deployment." }, headers);
+    if (report.cases.length !== evalCases.length || !report.cases.every((row) =>
+      evalCasesByName.get(row.name)?.message === row.question && row.scores.answer_relevancy !== null
+    )) return sendJson(response, 400, { error: "Report must contain the complete scored benchmark." }, headers);
+  }
+  await knowledgeStore.setSetting(evalDashboardSetting, { ...report, automated });
+  return sendJson(response, 200, { ok: true }, headers);
+}
+
+async function handleHostedEval(request, response, url) {
+  const headers = { "Cache-Control": "no-store" };
+  if (!evalToken) return sendJson(response, 404, { error: "Hosted evaluation is disabled." }, headers);
+  const supplied = Buffer.from(request.headers.authorization || "");
+  const expected = Buffer.from(`Bearer ${evalToken}`);
+  if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) {
+    return sendJson(response, 401, { error: "Invalid benchmark token." }, headers);
+  }
+  if (url.pathname === "/api/eval/status" && request.method === "GET") {
+    return sendJson(response, 200, {
+      commit: deployCommit,
+      chatMode: process.env.OPENAI_API_KEY ? "ai" : "retrieval",
+      retrievalMode: ragIndex.mode,
+      chunks: ragIndex.chunks.length
+    }, headers);
+  }
+  if (!deployCommit || request.headers["x-eval-commit"] !== deployCommit) {
+    return sendJson(response, 409, { error: "Benchmark requires the expected deployed commit." }, headers);
+  }
+  if (url.pathname === "/api/eval/chat" && request.method === "POST") return handleChat(request, response, true);
+  if (url.pathname === "/api/eval/report" && request.method === "PUT") return saveEvalDashboard(request, response, true);
+  return sendJson(response, 404, { error: "Benchmark endpoint not found." }, headers);
 }
 
 async function handleAdmin(request, response, url) {
@@ -442,6 +510,7 @@ async function handleAdmin(request, response, url) {
   if (["PUT", "POST", "DELETE"].includes(request.method) && request.headers["x-admin-request"] !== "1") return sendJson(response, 403, { error: "Invalid editor request." });
   if (url.pathname === "/api/admin/rag-eval" && request.method === "GET") {
     const imported = await knowledgeStore.getSetting(evalDashboardSetting);
+    const source = imported ? (imported.automated ? "automation" : "imported") : null;
     if (["127.0.0.1", "::1"].includes(host) && isLoopback(request)) {
       try {
         if ((await stat(evalDashboardFile)).size > evalDashboardMaxBytes) throw new Error("Report is too large.");
@@ -453,26 +522,16 @@ async function handleAdmin(request, response, url) {
         if (error.code !== "ENOENT") {
           return sendJson(response, 200, {
             report: imported,
-            source: imported ? "imported" : null,
+            source,
             warning: `Local report could not be loaded. ${error.message}`
           }, { "Cache-Control": "no-store" });
         }
       }
     }
-    return sendJson(response, 200, { report: imported, source: imported ? "imported" : null }, { "Cache-Control": "no-store" });
+    return sendJson(response, 200, { report: imported, source }, { "Cache-Control": "no-store" });
   }
   if (url.pathname === "/api/admin/rag-eval" && request.method === "PUT") {
-    let report;
-    try {
-      report = validateEvalDashboard(await readJsonBody(request, evalDashboardMaxBytes));
-    } catch (error) {
-      if (error.message === "PAYLOAD_TOO_LARGE") throw error;
-      return sendJson(response, 400, {
-        error: error instanceof SyntaxError ? "The report file must contain valid JSON." : error.message
-      }, { "Cache-Control": "no-store" });
-    }
-    await knowledgeStore.setSetting(evalDashboardSetting, report);
-    return sendJson(response, 200, { ok: true }, { "Cache-Control": "no-store" });
+    return saveEvalDashboard(request, response);
   }
   if (url.pathname === "/api/admin/state" && request.method === "GET") return sendJson(response, 200, {
     portfolio,
@@ -584,6 +643,7 @@ const server = createServer(async (request, response) => {
     if (url.pathname === "/profile-photo" && ["GET", "HEAD"].includes(request.method)) return await serveProfilePhoto(request, response);
     if (url.pathname === "/api/portfolio" && request.method === "GET") return sendJson(response, 200, { portfolio, updatedAt: Date.now() });
     if (url.pathname === "/api/chat" && request.method === "POST") return await handleChat(request, response);
+    if (url.pathname.startsWith("/api/eval/")) return await handleHostedEval(request, response, url);
     if (url.pathname.startsWith("/api/admin/")) return await handleAdmin(request, response, url);
     if (!["GET", "HEAD"].includes(request.method)) return sendJson(response, 405, { error: "Method not allowed" });
     return await serveStatic(request, response, url);

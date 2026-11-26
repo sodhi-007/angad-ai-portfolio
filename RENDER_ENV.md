@@ -23,6 +23,7 @@ Add these in **Render → Environment → Environment Variables**.
 |---|---|---|
 | `OPENAI_MODEL` | `gpt-6-luna` | Chat model used in AI mode. |
 | `OPENAI_EMBEDDING_MODEL` | `text-embedding-3-small` | Embedding model for hybrid retrieval. |
+| `RAG_EVAL_TOKEN` | *(unset)* | Enables the hosted benchmark. Use the same 64-character hex secret in Render and GitHub Actions. See [hosted RAG evaluation](README.md#automatic-runs-on-render). |
 
 ## Do NOT set on Render
 

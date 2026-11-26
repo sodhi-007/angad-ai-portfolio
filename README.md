@@ -90,7 +90,7 @@ If the key is in `.env`, you can load it with `node --env-file=.env --run eval:j
 | Relevance | The answer addresses the question directly or gives the expected refusal or redirect. |
 | Policy compliance | The answer respects scope, language, privacy of instructions, and boundaries around commitments and sensitive recruiter questions. |
 
-Each metric returns a pass/fail label, a score from 0 to 1, and a short explanation. The rubrics are defined in [`scripts/eval.mjs`](scripts/eval.mjs). They check responses against curated expectations because the chat endpoint returns source metadata only.
+Each metric returns a pass/fail label, a score from 0 to 1, and a short explanation. The rubrics are defined in [`lib/eval-cases.mjs`](lib/eval-cases.mjs). They check responses against curated expectations because the public chat endpoint returns source metadata only.
 
 | File in `artifacts/eval/judge/` | What to inspect |
 |---|---|
@@ -146,6 +146,18 @@ npm run eval:judge:rag -- --export-dashboard
 ```
 
 For a custom report directory, add `--output-dir path/to/report` and import its `dashboard.json`.
+
+### Automatic runs on Render
+
+The [RAG evaluation workflow](.github/workflows/rag-eval.yml) runs on GitHub-hosted runners after benchmark or chatbot changes reach `main`. It waits for Render to serve the triggering commit, collects responses and ranked chunks from the live chatbot, scores them against the repository's profile PDF, and publishes a compact report to **Admin → RAG metrics**. Failed runs leave the previous report in place.
+
+Enable it once before running the workflow.
+
+1. Generate a benchmark token with `openssl rand -hex 32`. Add the value as `RAG_EVAL_TOKEN` in the Render service's environment and as a repository secret under **GitHub → Settings → Secrets and variables → Actions**. Treat it as a credential. It authorizes running the fixed benchmark, viewing its retrieved chunks, and publishing scores.
+2. Add `OPENAI_API_KEY` as a GitHub Actions repository secret for the Evidently judge. The chatbot continues to use the OpenAI key configured on Render.
+3. Deploy the latest `main` on Render and make sure the profile PDF is enabled in the live knowledge library. On GitHub, open **Actions → RAG evaluation → Run workflow** on `main` for the first run. Use the same button when you want to check a knowledge-library update made in the owner portal.
+
+The workflow sends captured text to the judge provider and publishes only questions, scores, and run metadata to the portal. Keep the chatbot's enabled corpus suitable for this evaluation. A full run makes up to 54 judge calls.
 
 ## Owner portal and storage
 

@@ -48,7 +48,7 @@ function renderEvalReport({ report, source, warning }, message) {
   results.hidden = !report;
   if (!report) {
     run.textContent = "Scores from the latest completed Evidently judge run.";
-    setEvalStatus(warning || "No report yet. Run the RAG judge locally, or import dashboard.json.", Boolean(warning));
+    setEvalStatus(warning || "No report yet. Run the RAG evaluation workflow or import dashboard.json.", Boolean(warning));
     return;
   }
 
@@ -57,9 +57,10 @@ function renderEvalReport({ report, source, warning }, message) {
     `${report.cases.length} questions`,
     [report.provider, report.model].filter(Boolean).join("/"),
     report.chatMode && `${report.chatMode} mode`,
+    report.commit && `Commit ${report.commit.slice(0, 7)}`,
     report.referencePdf,
     date,
-    source === "local" ? "Local report" : "Imported report"
+    { local: "Local report", imported: "Imported report", automation: "GitHub Actions" }[source]
   ].filter(Boolean).join(" · ");
 
   const formatScore = (score) => score === null ? "—" : evalScoreFormat.format(score);

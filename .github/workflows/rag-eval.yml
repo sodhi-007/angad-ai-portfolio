@@ -1,0 +1,78 @@
+name: RAG evaluation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'server.mjs'
+      - 'lib/**'
+      - 'data/portfolio.json'
+      - 'scripts/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'requirements-eval.txt'
+      - 'Dockerfile'
+      - 'Angad_Singh_Sodhi_Professional_Profile_Public.pdf'
+      - '.github/workflows/rag-eval.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-rag-eval
+  cancel-in-progress: true
+
+jobs:
+  evaluate:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      EVAL_BASE_URL: https://angad-portfolio.onrender.com
+      EVAL_EXPECT_COMMIT: ${{ github.sha }}
+    steps:
+      - name: Check configuration
+        env:
+          RAG_EVAL_TOKEN: ${{ secrets.RAG_EVAL_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [[ ! "$RAG_EVAL_TOKEN" =~ ^[a-f0-9]{64}$ || -z "$OPENAI_API_KEY" ]]; then
+            echo "::error::Set the RAG_EVAL_TOKEN and OPENAI_API_KEY repository secrets before running the benchmark."
+            exit 1
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: '3.11'
+
+      - name: Install evaluation dependencies
+        run: |
+          npm ci
+          python -m pip install -r requirements-eval.txt
+
+      - name: Collect responses from Render
+        env:
+          RAG_EVAL_TOKEN: ${{ secrets.RAG_EVAL_TOKEN }}
+        run: npm run eval
+
+      - name: Score the benchmark with Evidently
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if ! python scripts/judge_rag.py 2>"$RUNNER_TEMP/rag-judge-errors.log"; then
+            echo "::error::The judge failed. Check the OpenAI key and quota. Detailed errors can contain benchmark content."
+            exit 1
+          fi
+
+      - name: Publish scores to the owner portal
+        env:
+          RAG_EVAL_TOKEN: ${{ secrets.RAG_EVAL_TOKEN }}
+        run: node scripts/publish-rag-eval.mjs

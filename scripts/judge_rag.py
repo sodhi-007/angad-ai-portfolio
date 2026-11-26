@@ -203,6 +203,7 @@ def export_dashboard(directory, summary, results):
         "provider": summary["judge"]["provider"],
         "model": summary["judge"]["model"],
         "chatMode": source.get("server", {}).get("chatMode", ""),
+        "commit": source.get("server", {}).get("commit", ""),
         "referencePdf": source.get("referencePdf", {}).get("name", ""),
         "cases": [
             {
@@ -246,7 +247,7 @@ def main():
     metadata, cases = load_cases(args.input, args.limit)
     pdf = metadata.get("referencePdf")
     if not pdf:
-        raise ValueError("The input has no PDF references. Collect responses with EVAL_TRACE_DIR on both the server and runner.")
+        raise ValueError("The input has no PDF references. Collect a hosted or local RAG benchmark first.")
     names = set()
     for case in cases:
         if case["name"] in names:
